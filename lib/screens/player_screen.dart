@@ -61,6 +61,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(widget.stream.streamUrl));
       await _videoPlayerController!.initialize();
 
+      if (!mounted) return;
+      final colorScheme = Theme.of(context).colorScheme;
+
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
         autoPlay: true,
@@ -70,20 +73,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
         allowFullScreen: true,
         deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
         fullScreenByDefault: false,
-        placeholder: const Center(
-          child: CircularProgressIndicator(color: Colors.cyanAccent),
+        placeholder: Center(
+          child: CircularProgressIndicator(color: colorScheme.primary),
         ),
         errorBuilder: (context, errorMessage) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 42),
+                Icon(Icons.error_outline, color: colorScheme.error, size: 42),
                 const SizedBox(height: 10),
                 Text(
                   "Stream link is broken or offline (404)",
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70),
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -93,18 +96,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       setState(() {});
     } catch (e) {
       debugPrint("Error initializing player: $e");
-      // Handle initialization error
       if (mounted) {
-        setState(() {
-          // You could show a specialized error UI here
-        });
+        setState(() {});
       }
     }
   }
 
   @override
   void dispose() {
-    // Reset orientations when leaving
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
@@ -116,15 +115,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_isYoutube && _youtubeController != null) {
       return YoutubePlayerBuilder(
         player: YoutubePlayer(
           controller: _youtubeController!,
           showVideoProgressIndicator: true,
-          progressIndicatorColor: Colors.cyanAccent,
-          onReady: () {
-            // Optional: Action on player ready
-          },
+          progressIndicatorColor: colorScheme.primary,
         ),
         builder: (context, player) {
           return Scaffold(
@@ -132,7 +130,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             appBar: MediaQuery.of(context).orientation == Orientation.portrait
                 ? AppBar(
                     backgroundColor: Colors.transparent,
-                    title: Text(widget.stream.title, style: const TextStyle(fontSize: 16)),
+                    title: Text(widget.stream.title, style: TextStyle(fontSize: 16, color: colorScheme.onSurface)),
+                    iconTheme: IconThemeData(color: colorScheme.onSurface),
                   )
                 : null,
             body: Center(child: player),
@@ -146,14 +145,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
       appBar: MediaQuery.of(context).orientation == Orientation.portrait
           ? AppBar(
               backgroundColor: Colors.transparent,
-              title: Text(widget.stream.title, style: const TextStyle(fontSize: 16)),
+              title: Text(widget.stream.title, style: TextStyle(fontSize: 16, color: colorScheme.onSurface)),
+              iconTheme: IconThemeData(color: colorScheme.onSurface),
             )
           : null,
       body: Center(
         child: _chewieController != null &&
                 _chewieController!.videoPlayerController.value.isInitialized
             ? Chewie(controller: _chewieController!)
-            : const CircularProgressIndicator(color: Colors.cyanAccent),
+            : CircularProgressIndicator(color: colorScheme.primary),
       ),
     );
   }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../services/firebase_service.dart';
 import '../models/stream_model.dart';
 import '../widgets/stream_card.dart';
@@ -15,7 +15,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late FirebaseService _firebaseService;
-  String _selectedCategoryId = 'live_tv'; 
+  String _selectedCategoryId = 'live_tv';
   String _searchQuery = "";
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -33,139 +33,292 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: _isSearching
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Search match or channel...',
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.white54),
-                ),
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-                onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
-              )
-            : Center(
-                child: GestureDetector(
-                  onLongPress: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const AdminLoginScreen())),
-                  child: Text(
-                    'Sportzfy',
-                    style: GoogleFonts.bangers(
-                      textStyle: const TextStyle(color: Colors.cyanAccent, fontSize: 32, letterSpacing: 2),
-                    ),
+            ? _buildSearchField(colorScheme)
+            : GestureDetector(
+                onLongPress: () => Navigator.push(
+                    context, MaterialPageRoute(builder: (c) => const AdminLoginScreen())),
+                child: Hero(
+                  tag: 'logo',
+                  child: Image.asset(
+                    'assets/images/icon.jpeg',
+                    height: 40,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),
         actions: [
-          IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                _isSearching = !_isSearching;
-                if (!_isSearching) {
-                  _searchQuery = "";
-                  _searchController.clear();
-                }
-              });
-            },
-          ),
+          _buildSearchAction(colorScheme),
         ],
       ),
-      body: Column(
-        children: [
-          _buildMarquee(),
-          _buildCategoryTabs(),
-          Expanded(
-            child: StreamBuilder<List<StreamModel>>(
-              stream: _firebaseService.getStreams(categoryId: _selectedCategoryId),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Colors.cyanAccent));
-                }
-                
-                final list = snapshot.data ?? [];
-                final filteredList = list.where((s) => s.title.toLowerCase().contains(_searchQuery)).toList();
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(-0.8, -0.6),
+            radius: 1.5,
+            colors: [
+              colorScheme.primary.withOpacity(0.05),
+              colorScheme.surface,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildMarquee(colorScheme),
+              _buildCategoryTabs(colorScheme),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _buildStreamList(colorScheme),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-                if (filteredList.isEmpty) {
-                  return const Center(child: Text("No items found in this category", style: TextStyle(color: Colors.white54)));
-                }
+  Widget _buildSearchField(ColorScheme colorScheme) {
+    return Container(
+      height: 45,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
+      ),
+      child: TextField(
+        controller: _searchController,
+        autofocus: true,
+        decoration: InputDecoration(
+          hintText: 'Search channels or matches...',
+          border: InputBorder.none,
+          prefixIcon: Icon(Icons.search, color: colorScheme.primary, size: 20),
+          hintStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.5), fontSize: 14),
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+        style: TextStyle(color: colorScheme.onSurface, fontSize: 16),
+        onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+      ),
+    );
+  }
 
-                if (_selectedCategoryId == 'live_tv') {
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(12),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.8,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
+  Widget _buildSearchAction(ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: _isSearching ? colorScheme.primary.withOpacity(0.1) : Colors.transparent,
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(_isSearching ? Icons.close : Icons.search,
+            color: _isSearching ? colorScheme.primary : colorScheme.onSurface),
+        onPressed: () {
+          setState(() {
+            _isSearching = !_isSearching;
+            if (!_isSearching) {
+              _searchQuery = "";
+              _searchController.clear();
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildStreamList(ColorScheme colorScheme) {
+    return StreamBuilder<List<StreamModel>>(
+      stream: _firebaseService.getStreams(categoryId: _selectedCategoryId),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+              child: Text("Something went wrong", style: TextStyle(color: colorScheme.error)));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: colorScheme.primary, strokeWidth: 2),
+                const SizedBox(height: 16),
+                Text("Loading streams...",
+                    style: TextStyle(color: colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
+              ],
+            ),
+          );
+        }
+
+        final list = snapshot.data ?? [];
+        final filteredList =
+            list.where((s) => s.title.toLowerCase().contains(_searchQuery)).toList();
+
+        if (filteredList.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.tv_off, size: 48, color: colorScheme.onSurface.withOpacity(0.1)),
+                const SizedBox(height: 16),
+                Text("No items found",
+                    style: TextStyle(color: colorScheme.onSurface.withOpacity(0.5), fontSize: 14)),
+              ],
+            ),
+          );
+        }
+
+        if (_selectedCategoryId == 'live_tv') {
+          return AnimationLimiter(
+            key: ValueKey(_selectedCategoryId + _searchQuery), // Reset animation when cat or search changes
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 0.75,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+              ),
+              itemCount: filteredList.length,
+              itemBuilder: (context, index) {
+                return AnimationConfiguration.staggeredGrid(
+                  position: index,
+                  duration: const Duration(milliseconds: 375),
+                  columnCount: 3,
+                  child: ScaleAnimation(
+                    child: FadeInAnimation(
+                      child: TvCard(stream: filteredList[index]),
                     ),
-                    itemCount: filteredList.length,
-                    itemBuilder: (context, index) => TvCard(stream: filteredList[index]),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: filteredList.length,
-                  itemBuilder: (context, index) => StreamCard(stream: filteredList[index]),
+                  ),
                 );
               },
             ),
+          );
+        }
+
+        return AnimationLimiter(
+          key: ValueKey(_selectedCategoryId + _searchQuery),
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 20),
+            itemCount: filteredList.length,
+            itemBuilder: (context, index) {
+              return AnimationConfiguration.staggeredList(
+                position: index,
+                duration: const Duration(milliseconds: 375),
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: StreamCard(stream: filteredList[index]),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMarquee(ColorScheme colorScheme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primary.withOpacity(0.1),
+            Colors.white.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.primary.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.campaign_rounded, color: colorScheme.primary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Welcome to SponT TV! Watch HD Live Sports & TV Channels for free.",
+              style: TextStyle(
+                color: colorScheme.onSurface.withOpacity(0.8),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMarquee() {
+  Widget _buildCategoryTabs(ColorScheme colorScheme) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      margin: const EdgeInsets.all(12),
+      height: 50,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(15),
       ),
-      child: const Text(
-        "Welcome to Sportzfy! Enjoy Live TV and Sports streaming.",
-        style: TextStyle(color: Colors.white70, fontSize: 12),
-        overflow: TextOverflow.ellipsis,
+      child: Row(
+        children: _categories.map((cat) {
+          final isSelected = _selectedCategoryId == cat['id'];
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedCategoryId = cat['id']!),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [colorScheme.primary, colorScheme.secondary],
+                        )
+                      : null,
+                  color: isSelected ? null : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: colorScheme.primary.withOpacity(0.2), // Reduced opacity for "cleaner" look
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      cat['icon'] == 'live_tv' ? Icons.tv_rounded : Icons.sports_soccer_rounded,
+                      color: isSelected ? Colors.black : colorScheme.onSurface.withOpacity(0.6),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      cat['name']!,
+                      style: TextStyle(
+                        color: isSelected ? Colors.black : colorScheme.onSurface.withOpacity(0.6),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
-    );
-  }
-
-  Widget _buildCategoryTabs() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: _categories.map((cat) {
-        final isSelected = _selectedCategoryId == cat['id'];
-        return GestureDetector(
-          onTap: () => setState(() => _selectedCategoryId = cat['id']!),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.cyanAccent.withOpacity(0.1) : Colors.white10,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isSelected ? Colors.cyanAccent : Colors.transparent),
-            ),
-            child: Row(
-              children: [
-                Icon(cat['icon'] == 'live_tv' ? Icons.tv : Icons.sports_soccer, 
-                     color: isSelected ? Colors.cyanAccent : Colors.white60, size: 20),
-                const SizedBox(width: 8),
-                Text(cat['name']!, style: TextStyle(color: isSelected ? Colors.cyanAccent : Colors.white60, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }

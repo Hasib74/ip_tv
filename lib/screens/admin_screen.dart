@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:m3u/m3u.dart';
 import '../models/stream_model.dart';
 import '../services/firebase_service.dart';
 import 'player_screen.dart';
@@ -22,7 +20,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   bool _isSearching = false;
-  String _targetCategory = "Live TV";
+  final String _targetCategory = "Live TV";
 
   // Fetch from any M3U or JSON URL
   Future<void> _fetchFromUrl(String url) async {
@@ -54,30 +52,17 @@ class _AdminScreenState extends State<AdminScreen> {
           _apiChannels = parsedChannels;
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Loaded ${parsedChannels.length} channels.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Loaded ${parsedChannels.length} channels.')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
       setState(() => _isLoading = false);
-    }
-  }
-
-  // Parse M3U Text
-  Future<void> _parseM3U(String content) async {
-    try {
-      final m3uList = await M3uParser.parse(content);
-      setState(() {
-        _apiChannels = m3uList.map((item) => {
-          'name': item.title,
-          'logo': item.attributes['tvg-logo'] ?? '',
-          'url': item.link,
-          'categories': [item.attributes['group-title'] ?? 'General'],
-        }).toList();
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('M3U Parse Error: $e')));
     }
   }
 
@@ -94,6 +79,7 @@ class _AdminScreenState extends State<AdminScreen> {
     return showDialog(
       context: context,
       builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -128,7 +114,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       TextField(controller: team1NameController, decoration: const InputDecoration(labelText: 'Team 1 Name')),
                       TextField(controller: team1LogoController, decoration: const InputDecoration(labelText: 'Team 1 Logo URL')),
                       const SizedBox(height: 10),
-                      const Text("VS", style: TextStyle(color: Colors.cyanAccent)),
+                      Text("VS", style: TextStyle(color: colorScheme.primary)),
                       TextField(controller: team2NameController, decoration: const InputDecoration(labelText: 'Team 2 Name')),
                       TextField(controller: team2LogoController, decoration: const InputDecoration(labelText: 'Team 2 Logo URL')),
                     ],
@@ -174,14 +160,20 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _deleteChannel(String id) async {
     try {
       await _firebaseService.deleteStream(id);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed successfully!')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed successfully!')));
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -191,7 +183,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   controller: _searchController,
                   autofocus: true,
                   decoration: const InputDecoration(hintText: 'Search...', border: InputBorder.none),
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: colorScheme.onSurface),
                   onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
                 )
               : const Text('Admin Dashboard'),
@@ -212,8 +204,11 @@ class _AdminScreenState extends State<AdminScreen> {
               tooltip: 'Add Individual Channel',
             ),
           ],
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            indicatorColor: colorScheme.primary,
+            labelColor: colorScheme.primary,
+            unselectedLabelColor: colorScheme.onSurfaceVariant,
+            tabs: const [
               Tab(text: "Search & Add", icon: Icon(Icons.playlist_add)),
               Tab(text: "Manage Saved", icon: Icon(Icons.storage)),
             ],
@@ -221,15 +216,15 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
         body: TabBarView(
           children: [
-            _buildScraperTab(),
-            _buildDatabaseTab(),
+            _buildScraperTab(colorScheme),
+            _buildDatabaseTab(colorScheme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildScraperTab() {
+  Widget _buildScraperTab(ColorScheme colorScheme) {
     final filteredChannels = _apiChannels.where((channel) {
       final name = (channel['name'] ?? '').toString().toLowerCase();
       final url = (channel['url'] ?? '').toString().toLowerCase();
@@ -252,13 +247,13 @@ class _AdminScreenState extends State<AdminScreen> {
                 decoration: InputDecoration(
                   hintText: 'Enter M3U or JSON URL...',
                   suffixIcon: IconButton(
-                    icon: const Icon(Icons.download),
+                    icon: Icon(Icons.download, color: colorScheme.primary),
                     onPressed: () => _fetchFromUrl(_urlController.text),
                   ),
                 ),
               ),
             ),
-            if (_isLoading) const LinearProgressIndicator(),
+            if (_isLoading) LinearProgressIndicator(color: colorScheme.primary),
             Expanded(
               child: ListView.builder(
                 itemCount: filteredChannels.length,
@@ -272,8 +267,8 @@ class _AdminScreenState extends State<AdminScreen> {
                     leading: channel['logo'] != null && channel['logo'] != ''
                         ? Image.network(channel['logo'], width: 40, errorBuilder: (c, e, s) => const Icon(Icons.tv))
                         : const Icon(Icons.tv),
-                    title: Text(channel['name'] ?? 'Unknown', style: TextStyle(color: isSaved ? Colors.cyanAccent : Colors.white)),
-                    subtitle: Text(streamUrl, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    title: Text(channel['name'] ?? 'Unknown', style: TextStyle(color: isSaved ? colorScheme.primary : colorScheme.onSurface)),
+                    subtitle: Text(streamUrl, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colorScheme.onSurfaceVariant)),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -290,9 +285,9 @@ class _AdminScreenState extends State<AdminScreen> {
                           },
                         ),
                         if (isSaved)
-                          IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteChannel(savedStream.id))
+                          IconButton(icon: Icon(Icons.delete, color: colorScheme.error), onPressed: () => _deleteChannel(savedStream.id))
                         else
-                          IconButton(icon: const Icon(Icons.add_circle, color: Colors.white70), onPressed: () => _showAddDialog(channel: channel)),
+                          IconButton(icon: Icon(Icons.add_circle, color: colorScheme.onSurfaceVariant), onPressed: () => _showAddDialog(channel: channel)),
                       ],
                     ),
                   );
@@ -305,11 +300,11 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  Widget _buildDatabaseTab() {
+  Widget _buildDatabaseTab(ColorScheme colorScheme) {
     return StreamBuilder<List<StreamModel>>(
       stream: _firebaseService.getStreams(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: colorScheme.primary));
         
         final list = snapshot.data!.where((s) => s.title.toLowerCase().contains(_searchQuery)).toList();
         
@@ -321,13 +316,13 @@ class _AdminScreenState extends State<AdminScreen> {
               leading: stream.team1Logo.isNotEmpty 
                   ? Image.network(stream.team1Logo, width: 40, errorBuilder: (c, e, s) => const Icon(Icons.tv))
                   : const Icon(Icons.tv),
-              title: Text(stream.title),
-              subtitle: Text("${stream.subtitle} | ${stream.streamUrl}", maxLines: 1, overflow: TextOverflow.ellipsis),
+              title: Text(stream.title, style: TextStyle(color: colorScheme.onSurface)),
+              subtitle: Text("${stream.subtitle} | ${stream.streamUrl}", maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colorScheme.onSurfaceVariant)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(icon: const Icon(Icons.edit, color: Colors.orange), onPressed: () => _showAddDialog(existingStream: stream)),
-                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteChannel(stream.id)),
+                  IconButton(icon: Icon(Icons.delete, color: colorScheme.error), onPressed: () => _deleteChannel(stream.id)),
                 ],
               ),
             );

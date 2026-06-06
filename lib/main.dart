@@ -1,18 +1,15 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-//import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase with platform-specific options from firebase_options.dart
-  await Firebase.initializeApp(
- //   options: DefaultFirebaseOptions.currentPlatform,
-  ).catchError((e) {
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
     debugPrint("Firebase initialization failed: $e");
-  });
+  }
 
   runApp(const MyApp());
 }
@@ -22,14 +19,35 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Premium theme based on the logo's Orange, White, and Dark Grey palette
+    final ColorScheme customColorScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFFFF8000), // Logo Orange
+      brightness: Brightness.dark,
+      surface: const Color(0xFF0F0F0F), // Dark Grey from logo background
+      onSurface: Colors.white,
+      primary: const Color(0xFFFF8000), // Main Orange
+      secondary: const Color(0xFFFFB300), // Secondary Amber/Orange
+      onPrimary: Colors.black,
+    );
+
     return MaterialApp(
-      title: 'Sportzfy IPTV',
+      title: 'SponT TV',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.cyan,
-        scaffoldBackgroundColor: const Color(0xFF0D1117),
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+        useMaterial3: true,
+        colorScheme: customColorScheme,
+        scaffoldBackgroundColor: customColorScheme.surface,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: Colors.white),
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF1A1A1A), // Subtle grey card
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 0,
+        ),
       ),
       home: const HomeScreen(),
     );
