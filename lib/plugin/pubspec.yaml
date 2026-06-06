@@ -1,0 +1,7 @@
+name: m3u
+description: A parser of M3U documents.
+version: 1.0.1
+environment:
+  sdk: '>=2.12.0 <3.0.0'
+dependencies:
+  meta: ^1.7.0
