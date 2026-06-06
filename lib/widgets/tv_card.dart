@@ -173,7 +173,7 @@ class _LiveBadgeState extends State<_LiveBadge>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: cs.error,
+        color: Colors.red,
         borderRadius: BorderRadius.circular(5),
       ),
       child: Row(
