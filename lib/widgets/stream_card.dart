@@ -11,28 +11,23 @@ class StreamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PlayerScreen(stream: stream),
-          ),
-        );
-      },
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PlayerScreen(stream: stream)),
+      ),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: cs.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colorScheme.primary.withOpacity(0.1)),
+          border: Border.all(color: cs.outline.withOpacity(0.12)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
+              color: cs.shadow.withOpacity(0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -40,49 +35,64 @@ class StreamCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: Column(
             children: [
-              // Header with Status and Time
+              // ── Header ──
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.05),
+                  color: cs.primaryContainer.withOpacity(0.25),
+                  border: Border(
+                    bottom: BorderSide(color: cs.primary.withOpacity(0.08)),
+                  ),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        _buildStatusBadge(colorScheme),
-                        const SizedBox(width: 8),
-                        Text(
-                          stream.title,
-                          style: TextStyle(
-                            color: colorScheme.onSurface,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    // LIVE badge
+                    _LivePill(cs: cs),
+                    const SizedBox(width: 10),
+                    // Title
+                    Expanded(
+                      child: Text(
+                        stream.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: cs.onSurface,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.1,
                         ),
-                      ],
+                      ),
                     ),
-                    Text(
-                      DateFormat('hh:mm a  dd/MM').format(stream.startTime),
-                      style: TextStyle(
-                        color: colorScheme.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(width: 8),
+                    // Time
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: cs.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        DateFormat('hh:mm a').format(stream.startTime),
+                        style: TextStyle(
+                          color: cs.primary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              
-              // Match Details (Teams & VS)
+
+              // ── Teams ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
                 child: Row(
                   children: [
-                    Expanded(child: _buildTeam(context, stream.team1Name, stream.team1Logo)),
-                    _buildVS(colorScheme),
-                    Expanded(child: _buildTeam(context, stream.team2Name, stream.team2Logo)),
+                    Expanded(child: _buildTeam(cs, stream.team1Name, stream.team1Logo)),
+                    _buildVSBadge(cs),
+                    Expanded(child: _buildTeam(cs, stream.team2Name, stream.team2Logo)),
                   ],
                 ),
               ),
@@ -93,87 +103,171 @@ class StreamCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: colorScheme.primary.withOpacity(0.5), width: 0.5),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: colorScheme.primary,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            "LIVE",
-            style: TextStyle(color: colorScheme.primary, fontSize: 9, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVS(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        "VS",
-        style: TextStyle(
-          color: colorScheme.primary,
-          fontSize: 14,
-          fontWeight: FontWeight.w900,
-          fontStyle: FontStyle.italic,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTeam(BuildContext context, String name, String logo) {
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget _buildTeam(ColorScheme cs, String name, String logo) {
     return Column(
       children: [
         Container(
+          width: 60,
+          height: 60,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03),
+            color: cs.surfaceVariant.withOpacity(0.5),
             shape: BoxShape.circle,
+            border: Border.all(color: cs.outline.withOpacity(0.12)),
           ),
           child: CachedNetworkImage(
             imageUrl: logo,
-            height: 48,
-            width: 48,
-            placeholder: (context, url) => Icon(Icons.sports_soccer_rounded, 
-                color: colorScheme.onSurface.withOpacity(0.2), size: 32),
-            errorWidget: (context, url, error) => Icon(Icons.broken_image_rounded, 
-                color: colorScheme.onSurface.withOpacity(0.2), size: 32),
+            fit: BoxFit.contain,
+            placeholder: (_, __) => Icon(
+              Icons.sports_soccer_rounded,
+              color: cs.onSurface.withOpacity(0.2),
+              size: 28,
+            ),
+            errorWidget: (_, __, ___) => Icon(
+              Icons.broken_image_outlined,
+              color: cs.onSurface.withOpacity(0.2),
+              size: 28,
+            ),
           ),
         ),
         const SizedBox(height: 10),
         Text(
           name,
           textAlign: TextAlign.center,
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: colorScheme.onSurface.withOpacity(0.9),
-            fontSize: 13,
+            color: cs.onSurface.withOpacity(0.9),
+            fontSize: 12.5,
             fontWeight: FontWeight.w600,
+            height: 1.2,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildVSBadge(ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  cs.primary,
+                  cs.secondary,
+                ],
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: cs.primary.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Text(
+                'VS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            DateFormat('dd MMM').format(stream.startTime),
+            style: TextStyle(
+              color: cs.onSurface.withOpacity(0.4),
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Animated LIVE pill ───────────────────────────────────────────────────────
+class _LivePill extends StatefulWidget {
+  final ColorScheme cs;
+  const _LivePill({required this.cs});
+
+  @override
+  State<_LivePill> createState() => _LivePillState();
+}
+
+class _LivePillState extends State<_LivePill>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulse = Tween<double>(begin: 0.35, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.cs;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cs.error.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: cs.error.withOpacity(0.3), width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedBuilder(
+            animation: _pulse,
+            builder: (_, __) => Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: cs.error.withOpacity(_pulse.value),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'LIVE',
+            style: TextStyle(
+              color: cs.error,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

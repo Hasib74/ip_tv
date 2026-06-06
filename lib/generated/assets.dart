@@ -11,7 +11,8 @@ class Assets {
 class $AssetsImagesGen {
   const $AssetsImagesGen();
 
-  final AssetGenImage icon = const AssetGenImage('assets/images/icon.jpeg');
+  final AssetGenImage iconPng = const AssetGenImage('assets/images/icon.png');
+  final AssetGenImage iconJpeg = const AssetGenImage('assets/images/icon.jpeg');
   final AssetGenImage logo = const AssetGenImage('assets/images/logo.jpeg');
 }
 
