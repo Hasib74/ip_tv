@@ -1,19 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    debugPrint("Firebase initialization failed: $e");
-  }
-
   runApp(const MyApp());
 }
 
@@ -22,19 +11,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Premium theme for Sportzfy Clone
+    // Premium theme based on the logo's Orange, White, and Dark Grey palette
     final ColorScheme customColorScheme = ColorScheme.fromSeed(
-      seedColor: Colors.cyanAccent,
+      seedColor: const Color(0xFFFF8000), // Logo Orange
       brightness: Brightness.dark,
-      surface: const Color(0xFF0D1117),
+      surface: const Color(0xFF0F0F0F), // Dark Grey from logo background
       onSurface: Colors.white,
-      primary: Colors.cyanAccent,
-      secondary: Colors.cyan,
+      primary: const Color(0xFFFF8000), // Main Orange
+      secondary: const Color(0xFFFFB300), // Secondary Amber/Orange
       onPrimary: Colors.black,
     );
 
     return MaterialApp(
-      title: 'Sportzfy IPTV',
+      title: 'SponT TV',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -47,12 +36,12 @@ class MyApp extends StatelessWidget {
           iconTheme: IconThemeData(color: Colors.white),
         ),
         cardTheme: CardThemeData(
-          color: const Color(0xFF1E2746),
+          color: const Color(0xFF1A1A1A), // Subtle grey card
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 0,
         ),
       ),
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../services/firebase_service.dart';
+import '../services/ad_service.dart';
 import '../models/stream_model.dart';
 import '../widgets/stream_card.dart';
 import '../widgets/tv_card.dart';
@@ -47,8 +48,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _switchCategory(String id) {
     if (_selectedCategoryId == id) return;
-    setState(() => _selectedCategoryId = id);
-    _tabAnimController.forward(from: 0);
+    
+    // Show Interstitial Ad every 4th category switch
+    AdService.showInterstitialAd(context, () {
+      setState(() => _selectedCategoryId = id);
+      _tabAnimController.forward(from: 0);
+    });
   }
 
   @override
@@ -62,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen>
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: cs.background,
+        backgroundColor: cs.surface,
         body: Stack(
           children: [
             _buildBackgroundDecor(cs, isDark),
@@ -129,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: Hero(
               tag: 'logo',
               child: Image.asset(
-                'assets/images/icon.png',
+                'assets/images/icon.jpeg',
                 height: 36,
                 fit: BoxFit.contain,
               ),
@@ -158,9 +163,9 @@ class _HomeScreenState extends State<HomeScreen>
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       height: 48,
       decoration: BoxDecoration(
-        color: cs.surfaceVariant.withOpacity(0.6),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withOpacity(0.2)),
+        border: Border.all(color: cs.primary.withOpacity(0.2)),
       ),
       child: TextField(
         controller: _searchController,
@@ -191,7 +196,12 @@ class _HomeScreenState extends State<HomeScreen>
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
       decoration: BoxDecoration(
-        color: cs.primaryContainer.withOpacity(0.35),
+        gradient: LinearGradient(
+          colors: [
+            cs.primary.withOpacity(0.1),
+            Colors.white.withOpacity(0.05),
+          ],
+        ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: cs.primary.withOpacity(0.15)),
       ),
@@ -210,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: Text(
               'Welcome to SponT TV! Watch HD Live Sports & TV Channels for free.',
               style: TextStyle(
-                color: cs.onPrimaryContainer,
+                color: cs.onSurface.withOpacity(0.8),
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.1,
@@ -223,16 +233,15 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ── Category Tabs — properly tall ───────────────────────────────────────
+  // ── Category Tabs ───────────────────────────────────────────────────────
   Widget _buildCategoryTabs(ColorScheme cs, bool isDark) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       padding: const EdgeInsets.all(5),
-      height: 60, // ← taller tab row
+      height: 55,
       decoration: BoxDecoration(
-        color: cs.surfaceVariant.withOpacity(0.4),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outline.withOpacity(0.12)),
       ),
       child: Row(
         children: _categories.map((cat) {
@@ -255,8 +264,8 @@ class _HomeScreenState extends State<HomeScreen>
                   boxShadow: isSelected
                       ? [
                     BoxShadow(
-                      color: cs.primary.withOpacity(0.3),
-                      blurRadius: 12,
+                      color: cs.primary.withOpacity(0.2), // Cleaner, softer shadow
+                      blurRadius: 10,
                       offset: const Offset(0, 4),
                     )
                   ]
@@ -271,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen>
                         cat['icon'] as IconData,
                         size: 19,
                         color: isSelected
-                            ? cs.onPrimary
+                            ? Colors.black
                             : cs.onSurface.withOpacity(0.45),
                       ),
                       const SizedBox(width: 8),
@@ -282,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen>
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.2,
                           color: isSelected
-                              ? cs.onPrimary
+                              ? Colors.black
                               : cs.onSurface.withOpacity(0.45),
                         ),
                       ),
@@ -297,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ── Stream List ──────────────────────────────────────────────────────────
+  // ── Stream List with Ad Injection ──────────────────────────────────────────
   Widget _buildStreamList(ColorScheme cs, bool isDark) {
     return StreamBuilder<List<StreamModel>>(
       stream: _firebaseService.getStreams(categoryId: _selectedCategoryId),
@@ -350,6 +359,16 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
+        // --- Ad Injection Logic ---
+        final List<dynamic> itemsWithAds = [];
+        for (var i = 0; i < filtered.length; i++) {
+          itemsWithAds.add(filtered[i]);
+          // Inject Banner Ad every 4 items
+          if ((i + 1) % 4 == 0 && i != filtered.length - 1) {
+            itemsWithAds.add('banner_ad');
+          }
+        }
+
         final key = ValueKey('$_selectedCategoryId|$_searchQuery');
 
         if (_selectedCategoryId == 'live_tv') {
@@ -359,20 +378,39 @@ class _HomeScreenState extends State<HomeScreen>
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                childAspectRatio: 0.72, // slightly taller card
+                childAspectRatio: 0.72,
                 mainAxisSpacing: 14,
                 crossAxisSpacing: 14,
               ),
-              itemCount: filtered.length,
-              itemBuilder: (_, i) => AnimationConfiguration.staggeredGrid(
-                position: i,
-                duration: const Duration(milliseconds: 350),
-                columnCount: 3,
-                child: ScaleAnimation(
-                  scale: 0.88,
-                  child: FadeInAnimation(child: TvCard(stream: filtered[i])),
-                ),
-              ),
+              itemCount: itemsWithAds.length,
+              itemBuilder: (_, i) {
+                final item = itemsWithAds[i];
+                
+                if (item == 'banner_ad') {
+                  return AnimationConfiguration.staggeredGrid(
+                    position: i,
+                    duration: const Duration(milliseconds: 375),
+                    columnCount: 3,
+                    child: FadeInAnimation(
+                      child: GridTile(
+                        child: Center(
+                          child: AdService.getBannerWidget(cs),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                return AnimationConfiguration.staggeredGrid(
+                  position: i,
+                  duration: const Duration(milliseconds: 375),
+                  columnCount: 3,
+                  child: ScaleAnimation(
+                    scale: 0.88,
+                    child: FadeInAnimation(child: TvCard(stream: item as StreamModel)),
+                  ),
+                );
+              },
             ),
           );
         }
@@ -381,17 +419,24 @@ class _HomeScreenState extends State<HomeScreen>
           key: key,
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            itemCount: filtered.length,
+            itemCount: itemsWithAds.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => AnimationConfiguration.staggeredList(
-              position: i,
-              duration: const Duration(milliseconds: 350),
-              child: SlideAnimation(
-                verticalOffset: 40,
-                child:
-                FadeInAnimation(child: StreamCard(stream: filtered[i])),
-              ),
-            ),
+            itemBuilder: (_, i) {
+              final item = itemsWithAds[i];
+              
+              if (item == 'banner_ad') {
+                return AdService.getBannerWidget(cs);
+              }
+
+              return AnimationConfiguration.staggeredList(
+                position: i,
+                duration: const Duration(milliseconds: 375),
+                child: SlideAnimation(
+                  verticalOffset: 40,
+                  child: FadeInAnimation(child: StreamCard(stream: item as StreamModel)),
+                ),
+              );
+            },
           ),
         );
       },
@@ -424,7 +469,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-// ── Helper widget ────────────────────────────────────────────────────────────
 class _TopBarButton extends StatelessWidget {
   final IconData icon;
   final ColorScheme cs;
@@ -444,9 +488,9 @@ class _TopBarButton extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: cs.surfaceVariant.withOpacity(0.5),
+          color: Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: cs.outline.withOpacity(0.15)),
+          border: Border.all(color: cs.primary.withOpacity(0.15)),
         ),
         child: Icon(icon, size: 20, color: cs.onSurface.withOpacity(0.8)),
       ),

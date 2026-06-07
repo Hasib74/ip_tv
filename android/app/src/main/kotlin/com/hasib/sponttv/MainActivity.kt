@@ -1,4 +1,4 @@
-package com.app.ip_tv
+package com.hasib.sponttv
 
 import io.flutter.embedding.android.FlutterActivity
 
