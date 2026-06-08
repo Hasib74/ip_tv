@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../models/stream_model.dart';
 
@@ -18,9 +18,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // Common
   bool _isYoutube = false;
 
-  // For Normal Streams
-  VideoPlayerController? _videoPlayerController;
-  ChewieController? _chewieController;
+  // For Normal Streams (media_kit)
+  late final Player _player;
+  late final VideoController _controller;
+  bool _isInitialized = false;
 
   // For Youtube
   YoutubePlayerController? _youtubeController;
@@ -38,7 +39,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _initializeYoutube();
     } else {
       _isYoutube = false;
-      _initializeNormalPlayer();
+      _initializeMediaKit();
     }
   }
 
@@ -56,49 +57,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  Future<void> _initializeNormalPlayer() async {
-    try {
-      _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(widget.stream.streamUrl));
-      await _videoPlayerController!.initialize();
+  Future<void> _initializeMediaKit() async {
+    _player = Player();
+    _controller = VideoController(_player);
+    
+    _player.stream.error.listen((event) {
+      debugPrint("MediaKit Error: $event");
+    });
 
-      if (!mounted) return;
-      final colorScheme = Theme.of(context).colorScheme;
-
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController!,
-        autoPlay: true,
-        looping: false,
-        isLive: true,
-        aspectRatio: _videoPlayerController!.value.aspectRatio,
-        allowFullScreen: true,
-        deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
-        fullScreenByDefault: false,
-        placeholder: Center(
-          child: CircularProgressIndicator(color: colorScheme.primary),
-        ),
-        errorBuilder: (context, errorMessage) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, color: colorScheme.error, size: 42),
-                const SizedBox(height: 10),
-                Text(
-                  "Stream link is broken or offline (404)",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-      setState(() {});
-    } catch (e) {
-      debugPrint("Error initializing player: $e");
-      if (mounted) {
-        setState(() {});
-      }
+    await _player.open(Media(widget.stream.streamUrl));
+    
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
     }
   }
 
@@ -107,8 +79,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
-    _videoPlayerController?.dispose();
-    _chewieController?.dispose();
+    if (!_isYoutube) {
+      _player.dispose();
+    }
     _youtubeController?.dispose();
     super.dispose();
   }
@@ -150,11 +123,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             )
           : null,
       body: Center(
-        child: _chewieController != null &&
-                _chewieController!.videoPlayerController.value.isInitialized
-            ? Chewie(controller: _chewieController!)
+        child: _isInitialized
+            ? Video(controller: _controller)
             : CircularProgressIndicator(color: colorScheme.primary),
       ),
     );
   }
 }
+

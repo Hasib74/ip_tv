@@ -359,60 +359,71 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        // --- Ad Injection Logic ---
-        final List<dynamic> itemsWithAds = [];
-        for (var i = 0; i < filtered.length; i++) {
-          itemsWithAds.add(filtered[i]);
-          // Inject Banner Ad every 4 items
-          if ((i + 1) % 4 == 0 && i != filtered.length - 1) {
-            itemsWithAds.add('banner_ad');
-          }
-        }
-
         final key = ValueKey('$_selectedCategoryId|$_searchQuery');
 
         if (_selectedCategoryId == 'live_tv') {
-          return AnimationLimiter(
-            key: key,
-            child: GridView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.72,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-              ),
-              itemCount: itemsWithAds.length,
-              itemBuilder: (_, i) {
-                final item = itemsWithAds[i];
-                
-                if (item == 'banner_ad') {
-                  return AnimationConfiguration.staggeredGrid(
-                    position: i,
-                    duration: const Duration(milliseconds: 375),
-                    columnCount: 3,
-                    child: FadeInAnimation(
-                      child: GridTile(
-                        child: Center(
-                          child: AdService.getBannerWidget(cs),
-                        ),
+          final List<Widget> slivers = [];
+          for (var i = 0; i < filtered.length; i += 6) {
+            final chunk = filtered.skip(i).take(6).toList();
+
+            // Add the grid chunk
+            slivers.add(
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 0.72,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => AnimationConfiguration.staggeredGrid(
+                      position: i + index,
+                      duration: const Duration(milliseconds: 375),
+                      columnCount: 3,
+                      child: ScaleAnimation(
+                        scale: 0.88,
+                        child: FadeInAnimation(
+                            child: TvCard(stream: chunk[index])),
                       ),
                     ),
-                  );
-                }
-
-                return AnimationConfiguration.staggeredGrid(
-                  position: i,
-                  duration: const Duration(milliseconds: 375),
-                  columnCount: 3,
-                  child: ScaleAnimation(
-                    scale: 0.88,
-                    child: FadeInAnimation(child: TvCard(stream: item as StreamModel)),
+                    childCount: chunk.length,
                   ),
-                );
-              },
+                ),
+              ),
+            );
+
+            // Add Banner Ad after every 6 items
+            if ((i + chunk.length) % 6 == 0) {
+              slivers.add(
+                SliverToBoxAdapter(
+                  child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_$i')),
+                ),
+              );
+            }
+          }
+
+          return AnimationLimiter(
+            key: key,
+            child: CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                ...slivers,
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
             ),
           );
+        }
+
+        // --- Ad Injection Logic for List View (Sports) ---
+        final List<dynamic> itemsWithAds = [];
+        for (var i = 0; i < filtered.length; i++) {
+          itemsWithAds.add(filtered[i]);
+          // Inject Banner Ad every 6 items
+          if ((i + 1) % 6 == 0) {
+            itemsWithAds.add('banner_ad_${i + 1}');
+          }
         }
 
         return AnimationLimiter(
@@ -424,8 +435,8 @@ class _HomeScreenState extends State<HomeScreen>
             itemBuilder: (_, i) {
               final item = itemsWithAds[i];
               
-              if (item == 'banner_ad') {
-                return AdService.getBannerWidget(cs);
+              if (item is String && item.startsWith('banner_ad_')) {
+                return AdService.getBannerWidget(cs, key: ValueKey(item));
               }
 
               return AnimationConfiguration.staggeredList(

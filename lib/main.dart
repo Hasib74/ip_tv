@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
@@ -15,6 +16,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main()  async{
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
 
   try {
     await Firebase.initializeApp(
@@ -59,7 +61,7 @@ class MyApp extends StatelessWidget {
       onSurface: Colors.white,
       primary: const Color(0xFFFF8000), // Main Orange
       secondary: const Color(0xFFFFB300), // Secondary Amber/Orange
-      onPrimary: Colors.black,
+      onPrimary:Color(0xFF0B1A30),
     );
 
     return MaterialApp(

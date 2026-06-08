@@ -101,14 +101,14 @@ class AdService {
   }
 
   // --- Banner Ad Widget ---
-  static Widget getBannerWidget(ColorScheme colorScheme) {
-    return _BannerAdWidget(colorScheme: colorScheme);
+  static Widget getBannerWidget(ColorScheme colorScheme, {Key? key}) {
+    return _BannerAdWidget(colorScheme: colorScheme, key: key);
   }
 }
 
 class _BannerAdWidget extends StatefulWidget {
   final ColorScheme colorScheme;
-  const _BannerAdWidget({required this.colorScheme});
+  const _BannerAdWidget({required this.colorScheme, super.key});
 
   @override
   State<_BannerAdWidget> createState() => _BannerAdWidgetState();
@@ -127,7 +127,7 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
   void _loadAd() {
     _bannerAd = BannerAd(
       adUnitId: AdService.bannerUnitId,
-      size: AdSize.mediumRectangle,
+      size: AdSize.largeBanner,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
@@ -155,15 +155,22 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
 
     return Container(
       alignment: Alignment.center,
-      margin: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      margin: const EdgeInsets.symmetric(vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.02),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: widget.colorScheme.primary.withOpacity(0.1)),
+        color: widget.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        border: Border.symmetric(
+          horizontal: BorderSide(
+            color: widget.colorScheme.primary.withOpacity(0.1),
+          ),
+        ),
       ),
-      width: _bannerAd!.size.width.toDouble(),
+      width: double.infinity,
       height: _bannerAd!.size.height.toDouble(),
-      child: AdWidget(ad: _bannerAd!),
+      child: SizedBox(
+        width: _bannerAd!.size.width.toDouble(),
+        height: _bannerAd!.size.height.toDouble(),
+        child: AdWidget(ad: _bannerAd!),
+      ),
     );
   }
 }
