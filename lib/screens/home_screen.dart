@@ -388,11 +388,25 @@ class _HomeScreenState extends State<HomeScreen>
 
         final key = ValueKey('$_selectedCategoryId|$_searchQuery');
 
-        // --- NEW: Movie View (Grid with 2 columns) ---
-        if (currentCategory.name.toLowerCase().contains("movie")) {
+        // --- NEW: Movie View (Premium Immersive Look) ---
+        if (currentCategory.icon == "movie") {
+          final featuredMovie = filtered.first;
+          final remainingMovies = filtered.skip(1).toList();
           final List<Widget> slivers = [];
-          for (var i = 0; i < filtered.length; i += 6) {
-            final chunk = filtered.skip(i).take(6).toList();
+
+          // 1. Featured Movie (Full Width)
+          slivers.add(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: _buildFeaturedMovie(cs, featuredMovie),
+              ),
+            ),
+          );
+
+          // 2. Remaining Movies Grid
+          for (var i = 0; i < remainingMovies.length; i += 6) {
+            final chunk = remainingMovies.skip(i).take(6).toList();
 
             slivers.add(
               SliverPadding(
@@ -400,8 +414,8 @@ class _HomeScreenState extends State<HomeScreen>
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.68,
-                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.7,
+                    mainAxisSpacing: 20,
                     crossAxisSpacing: 16,
                   ),
                   delegate: SliverChildBuilderDelegate(
@@ -434,103 +448,93 @@ class _HomeScreenState extends State<HomeScreen>
           return AnimationLimiter(
             key: key,
             child: CustomScrollView(
-              slivers: [
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                ...slivers,
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              ],
+              slivers: slivers,
             ),
           );
         }
 
-        // Check if category is "Live TV" (default/grid view)
-        if (currentCategory.name.toLowerCase().contains("tv") && !currentCategory.name.toLowerCase().contains("sport")) {
-          final List<Widget> slivers = [];
-          for (var i = 0; i < filtered.length; i += 6) {
-            final chunk = filtered.skip(i).take(6).toList();
-
-            // Add the grid chunk
-            slivers.add(
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.72,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => AnimationConfiguration.staggeredGrid(
-                      position: i + index,
-                      duration: const Duration(milliseconds: 375),
-                      columnCount: 3,
-                      child: ScaleAnimation(
-                        scale: 0.88,
-                        child: FadeInAnimation(
-                            child: TvCard(stream: chunk[index])),
-                      ),
-                    ),
-                    childCount: chunk.length,
-                  ),
-                ),
-              ),
-            );
-
-            // Add Banner Ad after every 6 items
-            if ((i + chunk.length) % 6 == 0) {
-              slivers.add(
-                SliverToBoxAdapter(
-                  child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_$i')),
-                ),
-              );
+        // Check if category is Sports (List View)
+        if (currentCategory.icon == "sports") {
+          final List<dynamic> itemsWithAds = [];
+          for (var i = 0; i < filtered.length; i++) {
+            itemsWithAds.add(filtered[i]);
+            if ((i + 1) % 6 == 0) {
+              itemsWithAds.add('banner_ad_${i + 1}');
             }
           }
 
           return AnimationLimiter(
             key: key,
-            child: CustomScrollView(
-              slivers: [
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                ...slivers,
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              ],
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: itemsWithAds.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final item = itemsWithAds[i];
+                if (item is String && item.startsWith('banner_ad_')) {
+                  return AdService.getBannerWidget(cs, key: ValueKey(item));
+                }
+                return AnimationConfiguration.staggeredList(
+                  position: i,
+                  duration: const Duration(milliseconds: 375),
+                  child: SlideAnimation(
+                    verticalOffset: 40,
+                    child: FadeInAnimation(child: StreamCard(stream: item as StreamModel)),
+                  ),
+                );
+              },
             ),
           );
         }
 
-        // --- Ad Injection Logic for List View (Sports & Others) ---
-        final List<dynamic> itemsWithAds = [];
-        for (var i = 0; i < filtered.length; i++) {
-          itemsWithAds.add(filtered[i]);
-          // Inject Banner Ad every 6 items
-          if ((i + 1) % 6 == 0) {
-            itemsWithAds.add('banner_ad_${i + 1}');
+        // Default: TV Grid View
+        final List<Widget> slivers = [];
+        for (var i = 0; i < filtered.length; i += 6) {
+          final chunk = filtered.skip(i).take(6).toList();
+
+          slivers.add(
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.72,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 14,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => AnimationConfiguration.staggeredGrid(
+                    position: i + index,
+                    duration: const Duration(milliseconds: 375),
+                    columnCount: 3,
+                    child: ScaleAnimation(
+                      scale: 0.88,
+                      child: FadeInAnimation(child: TvCard(stream: chunk[index])),
+                    ),
+                  ),
+                  childCount: chunk.length,
+                ),
+              ),
+            ),
+          );
+
+          if ((i + chunk.length) % 6 == 0) {
+            slivers.add(
+              SliverToBoxAdapter(
+                child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_$i')),
+              ),
+            );
           }
         }
 
         return AnimationLimiter(
           key: key,
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            itemCount: itemsWithAds.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) {
-              final item = itemsWithAds[i];
-              
-              if (item is String && item.startsWith('banner_ad_')) {
-                return AdService.getBannerWidget(cs, key: ValueKey(item));
-              }
-
-              return AnimationConfiguration.staggeredList(
-                position: i,
-                duration: const Duration(milliseconds: 375),
-                child: SlideAnimation(
-                  verticalOffset: 40,
-                  child: FadeInAnimation(child: StreamCard(stream: item as StreamModel)),
-                ),
-              );
-            },
+          child: CustomScrollView(
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              ...slivers,
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
           ),
         );
       },
@@ -558,6 +562,120 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Featured Movie Widget ──────────────────────────────────────────────────
+  Widget _buildFeaturedMovie(ColorScheme cs, StreamModel movie) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PlayerScreen(stream: movie)),
+      ),
+      child: Container(
+        height: 240,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: cs.primary.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CachedNetworkImage(
+                  imageUrl: movie.team1Logo,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
+                  errorWidget: (_, __, ___) => const Icon(Icons.movie_rounded, size: 50),
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.2),
+                        Colors.black.withOpacity(0.9),
+                      ],
+                      stops: const [0.4, 0.6, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 24,
+                left: 20,
+                right: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: cs.primary,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'FEATURED',
+                        style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      movie.title,
+                      style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      movie.subtitle.isEmpty ? 'Action • Thriller • 2024' : movie.subtitle,
+                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => PlayerScreen(stream: movie)),
+                          ),
+                          icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
+                          label: const Text('Watch Now', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          ),
+                          child: const Icon(Icons.info_outline_rounded, color: Colors.white, size: 24),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

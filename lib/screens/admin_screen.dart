@@ -162,7 +162,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           value: isHidden,
                           onChanged: (v) => setDialogState(() => isHidden = v),
                         ),
-                        if (selectedCategory.name.toLowerCase().contains("sport")) ...[
+                        if (selectedCategory.icon == "sports" || selectedCategory.name.toLowerCase().contains("sport")) ...[
                           const Divider(),
                           const Text("Match Details", style: TextStyle(fontWeight: FontWeight.bold)),
                           TextField(controller: team1NameController, decoration: const InputDecoration(labelText: 'Team 1 Name')),
