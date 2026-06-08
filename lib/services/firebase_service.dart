@@ -28,6 +28,22 @@ class FirebaseService {
     return snapshot.docs.map((doc) => doc.data()['token'] as String).toList();
   }
 
+  // Get App Version Config
+  Future<Map<String, dynamic>?> getAppVersionConfig() async {
+    final doc = await _db.collection('admin_config').doc('app_version').get();
+    return doc.data();
+  }
+
+  // Update App Version Config
+  Future<void> updateAppVersionConfig(String version, int buildNumber, String downloadUrl) async {
+    await _db.collection('admin_config').doc('app_version').set({
+      'latest_version': version,
+      'latest_build_number': buildNumber,
+      'download_url': downloadUrl,
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
   // ... (rest of the existing methods)
 
   // Get all categories

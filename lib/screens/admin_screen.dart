@@ -21,10 +21,28 @@ class _AdminScreenState extends State<AdminScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _notifTitleController = TextEditingController();
   final TextEditingController _notifBodyController = TextEditingController();
+  final TextEditingController _versionController = TextEditingController();
+  final TextEditingController _buildNumberController = TextEditingController();
+  final TextEditingController _updateUrlController = TextEditingController();
   
   String _searchQuery = "";
   bool _isSearching = false;
   final String _targetCategory = "Live TV";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentVersion();
+  }
+
+  Future<void> _loadCurrentVersion() async {
+    final config = await _firebaseService.getAppVersionConfig();
+    if (config != null) {
+      _versionController.text = config['latest_version'] ?? '';
+      _buildNumberController.text = config['latest_build_number']?.toString() ?? '';
+      _updateUrlController.text = config['download_url'] ?? '';
+    }
+  }
 
   // Fetch from any M3U or JSON URL
   Future<void> _fetchFromUrl(String url) async {
@@ -219,7 +237,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: _isSearching
@@ -256,6 +274,7 @@ class _AdminScreenState extends State<AdminScreen> {
               Tab(text: "Search & Add", icon: Icon(Icons.playlist_add)),
               Tab(text: "Manage Saved", icon: Icon(Icons.storage)),
               Tab(text: "Notifications", icon: Icon(Icons.notifications_active)),
+              Tab(text: "Settings", icon: Icon(Icons.settings)),
             ],
           ),
         ),
@@ -264,8 +283,91 @@ class _AdminScreenState extends State<AdminScreen> {
             _buildScraperTab(colorScheme),
             _buildDatabaseTab(colorScheme),
             _buildNotificationTab(colorScheme),
+            _buildSettingsTab(colorScheme),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTab(ColorScheme colorScheme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Force Update Settings',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorScheme.primary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Users with an older version will be forced to update to the version specified below.',
+            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _versionController,
+            decoration: InputDecoration(
+              labelText: 'Latest App Version Name',
+              hintText: 'e.g., 1.0.1',
+              prefixIcon: const Icon(Icons.update_rounded),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _buildNumberController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Latest Version Code (Build Number)',
+              hintText: 'e.g., 2',
+              prefixIcon: const Icon(Icons.numbers_rounded),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _updateUrlController,
+            decoration: InputDecoration(
+              labelText: 'Download URL',
+              hintText: 'e.g., https://yourwebsite.com/app.apk',
+              prefixIcon: const Icon(Icons.link_rounded),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : () async {
+                setState(() => _isLoading = true);
+                await _firebaseService.updateAppVersionConfig(
+                  _versionController.text.trim(),
+                  int.tryParse(_buildNumberController.text.trim()) ?? 1,
+                  _updateUrlController.text.trim(),
+                );
+                setState(() => _isLoading = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Version settings updated!')),
+                );
+              },
+              icon: _isLoading 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.save_rounded),
+              label: Text(
+                _isLoading ? 'Saving...' : 'Update App Version',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

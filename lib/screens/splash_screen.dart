@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/ad_service.dart';
+import '../services/firebase_service.dart';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -46,7 +49,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // 1. Firebase Background Init
       await Firebase.initializeApp();
       
-      // 2. Ads Background Init
+      // 2. Check for Force Update
+      await _checkUpdate();
+      
+      // 3. Ads Background Init
       await AdService.initialize();
       
       setState(() {
@@ -83,6 +89,48 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
+      }
+    }
+  }
+
+  Future<void> _checkUpdate() async {
+    final firebaseService = FirebaseService();
+    final config = await firebaseService.getAppVersionConfig();
+    
+    if (config != null) {
+      final latestVersionName = config['latest_version'] as String;
+      final latestBuildNumber = config['latest_build_number'] as int;
+      final downloadUrl = config['download_url'] as String;
+      
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      int currentBuildNumber = int.tryParse(packageInfo.buildNumber) ?? 0;
+      
+      // Compare build numbers (Version Code)
+      if (currentBuildNumber < latestBuildNumber) {
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => WillPopScope(
+              onWillPop: () async => false,
+              child: AlertDialog(
+                title: const Text('Update Required', style: TextStyle(fontWeight: FontWeight.bold)),
+                content: Text('A new version ($latestVersionName) is available. Please update to continue using SponT TV.'),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      final url = Uri.parse(downloadUrl);
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    child: const Text('Update Now', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
       }
     }
   }
