@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../services/firebase_service.dart';
 import '../services/ad_service.dart';
@@ -7,6 +8,7 @@ import '../models/stream_model.dart';
 import '../widgets/stream_card.dart';
 import '../widgets/tv_card.dart';
 import 'admin_login_screen.dart';
+import 'player_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,16 +20,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late FirebaseService _firebaseService;
-  String _selectedCategoryId = 'live_tv';
+  String? _selectedCategoryId;
   String _searchQuery = '';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _tabAnimController;
-
-  final List<Map<String, dynamic>> _categories = [
-    {'id': 'live_tv', 'name': 'Live TV', 'icon': Icons.tv_rounded},
-    {'id': 'live_sports', 'name': 'Sports', 'icon': Icons.sports_soccer_rounded},
-  ];
 
   @override
   void initState() {
@@ -37,6 +34,18 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     )..forward();
+  }
+
+  // Helper to map string to IconData
+  IconData _getIconData(String name) {
+    switch (name) {
+      case 'tv': return Icons.tv_rounded;
+      case 'sports': return Icons.sports_soccer_rounded;
+      case 'movie': return Icons.movie_rounded;
+      case 'music': return Icons.music_note_rounded;
+      case 'news': return Icons.newspaper_rounded;
+      default: return Icons.category_rounded;
+    }
   }
 
   @override
@@ -61,31 +70,46 @@ class _HomeScreenState extends State<HomeScreen>
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: cs.surface,
-        body: Stack(
-          children: [
-            _buildBackgroundDecor(cs, isDark),
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildTopBar(cs, isDark),
-                  if (_isSearching) _buildSearchBar(cs, isDark),
-                  _buildAnnouncementBanner(cs),
-                  _buildCategoryTabs(cs, isDark),
-                  const SizedBox(height: 8),
-                  Expanded(child: _buildStreamList(cs, isDark)),
-                ],
-              ),
+    return StreamBuilder<List<CategoryModel>>(
+      stream: _firebaseService.getCategories(includeHidden: false),
+      builder: (context, catSnapshot) {
+        final categories = catSnapshot.data ?? [];
+        if (_selectedCategoryId == null && categories.isNotEmpty) {
+          _selectedCategoryId = categories[0].id;
+        }
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          ),
+          child: Scaffold(
+            backgroundColor: cs.surface,
+            body: Stack(
+              children: [
+                _buildBackgroundDecor(cs, isDark),
+                SafeArea(
+                  child: Column(
+                    children: [
+                      _buildTopBar(cs, isDark),
+                      if (_isSearching) _buildSearchBar(cs, isDark),
+                      _buildAnnouncementBanner(cs),
+                      if (categories.isNotEmpty)
+                        _buildCategoryTabs(cs, isDark, categories),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: categories.isEmpty
+                            ? _buildState(icon: Icons.tv_off_rounded, label: 'No categories available', cs: cs)
+                            : _buildStreamList(cs, isDark, categories.firstWhere((c) => c.id == _selectedCategoryId, orElse: () => categories[0])),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      }
     );
   }
 
@@ -233,8 +257,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ── Category Tabs ───────────────────────────────────────────────────────
-  Widget _buildCategoryTabs(ColorScheme cs, bool isDark) {
+  Widget _buildCategoryTabs(ColorScheme cs, bool isDark, List<CategoryModel> categories) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       padding: const EdgeInsets.all(5),
@@ -243,15 +266,18 @@ class _HomeScreenState extends State<HomeScreen>
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        children: _categories.map((cat) {
-          final isSelected = _selectedCategoryId == cat['id'];
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => _switchCategory(cat['id'] as String),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: categories.map((cat) {
+            final isSelected = _selectedCategoryId == cat.id;
+            return GestureDetector(
+              onTap: () => _switchCategory(cat.id),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
+                margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(
                   gradient: isSelected
                       ? LinearGradient(
@@ -272,24 +298,24 @@ class _HomeScreenState extends State<HomeScreen>
                       : [],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        cat['icon'] as IconData,
-                        size: 19,
+                        _getIconData(cat.icon),
+                        size: 18,
                         color: isSelected
                             ? Colors.black
                             : cs.onSurface.withOpacity(0.45),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        cat['name'] as String,
+                        cat.name,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
+                          letterSpacing: 0.1,
                           color: isSelected
                               ? Colors.black
                               : cs.onSurface.withOpacity(0.45),
@@ -299,18 +325,19 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
 
   // ── Stream List with Ad Injection ──────────────────────────────────────────
-  Widget _buildStreamList(ColorScheme cs, bool isDark) {
+  Widget _buildStreamList(ColorScheme cs, bool isDark, CategoryModel currentCategory) {
     return StreamBuilder<List<StreamModel>>(
-      stream: _firebaseService.getStreams(categoryId: _selectedCategoryId),
+      stream: _firebaseService.getStreams(categoryId: _selectedCategoryId, includeHidden: false),
       builder: (context, snapshot) {
+        // ... same loading and error handling ...
         if (snapshot.hasError) {
           return _buildState(
             icon: Icons.error_outline_rounded,
@@ -361,7 +388,63 @@ class _HomeScreenState extends State<HomeScreen>
 
         final key = ValueKey('$_selectedCategoryId|$_searchQuery');
 
-        if (_selectedCategoryId == 'live_tv') {
+        // --- NEW: Movie View (Grid with 2 columns) ---
+        if (currentCategory.name.toLowerCase().contains("movie")) {
+          final List<Widget> slivers = [];
+          for (var i = 0; i < filtered.length; i += 6) {
+            final chunk = filtered.skip(i).take(6).toList();
+
+            slivers.add(
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.68,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => AnimationConfiguration.staggeredGrid(
+                      position: i + index,
+                      duration: const Duration(milliseconds: 375),
+                      columnCount: 2,
+                      child: ScaleAnimation(
+                        scale: 0.9,
+                        child: FadeInAnimation(
+                          child: MovieCard(stream: chunk[index]),
+                        ),
+                      ),
+                    ),
+                    childCount: chunk.length,
+                  ),
+                ),
+              ),
+            );
+
+            if ((i + chunk.length) % 6 == 0) {
+              slivers.add(
+                SliverToBoxAdapter(
+                  child: AdService.getBannerWidget(cs, key: ValueKey('ad_movie_$i')),
+                ),
+              );
+            }
+          }
+
+          return AnimationLimiter(
+            key: key,
+            child: CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                ...slivers,
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
+            ),
+          );
+        }
+
+        // Check if category is "Live TV" (default/grid view)
+        if (currentCategory.name.toLowerCase().contains("tv") && !currentCategory.name.toLowerCase().contains("sport")) {
           final List<Widget> slivers = [];
           for (var i = 0; i < filtered.length; i += 6) {
             final chunk = filtered.skip(i).take(6).toList();
@@ -416,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        // --- Ad Injection Logic for List View (Sports) ---
+        // --- Ad Injection Logic for List View (Sports & Others) ---
         final List<dynamic> itemsWithAds = [];
         for (var i = 0; i < filtered.length; i++) {
           itemsWithAds.add(filtered[i]);
@@ -504,6 +587,132 @@ class _TopBarButton extends StatelessWidget {
           border: Border.all(color: cs.primary.withOpacity(0.15)),
         ),
         child: Icon(icon, size: 20, color: cs.onSurface.withOpacity(0.8)),
+      ),
+    );
+  }
+}
+
+// ── NEW: Movie Card Widget ──────────────────────────────────────────────────
+class MovieCard extends StatelessWidget {
+  final StreamModel stream;
+  const MovieCard({super.key, required this.stream});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PlayerScreen(stream: stream)),
+      ),
+      child: Hero(
+        tag: stream.id,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CachedNetworkImage(
+                          imageUrl: stream.team1Logo,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: cs.surfaceContainerHighest,
+                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: cs.surfaceContainerHighest,
+                            child: const Icon(Icons.movie_rounded, size: 40),
+                          ),
+                        ),
+                      ),
+                      // Subtle gradient overlay at the bottom
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.7),
+                              ],
+                              stops: const [0.6, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Quality badge (optional)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'HD',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    stream.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: cs.onSurface,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    stream.subtitle.isEmpty ? 'Action • Movie' : stream.subtitle,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: cs.onSurface.withOpacity(0.5),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

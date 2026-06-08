@@ -25,14 +25,30 @@ class _AdminScreenState extends State<AdminScreen> {
   final TextEditingController _buildNumberController = TextEditingController();
   final TextEditingController _updateUrlController = TextEditingController();
   
+  // Category controllers
+  final TextEditingController _catNameController = TextEditingController();
+  final TextEditingController _catIconController = TextEditingController();
+  final TextEditingController _catPriorityController = TextEditingController();
+  
   String _searchQuery = "";
   bool _isSearching = false;
-  final String _targetCategory = "Live TV";
 
   @override
   void initState() {
     super.initState();
     _loadCurrentVersion();
+  }
+
+  // Helper to map string to IconData
+  IconData _getIconData(String name) {
+    switch (name) {
+      case 'tv': return Icons.tv_rounded;
+      case 'sports': return Icons.sports_soccer_rounded;
+      case 'movie': return Icons.movie_rounded;
+      case 'music': return Icons.music_note_rounded;
+      case 'news': return Icons.newspaper_rounded;
+      default: return Icons.category_rounded;
+    }
   }
 
   Future<void> _loadCurrentVersion() async {
@@ -96,77 +112,173 @@ class _AdminScreenState extends State<AdminScreen> {
     final team1LogoController = TextEditingController(text: existingStream?.team1Logo ?? channel?['logo'] ?? '');
     final team2NameController = TextEditingController(text: existingStream?.team2Name ?? '');
     final team2LogoController = TextEditingController(text: existingStream?.team2Logo ?? '');
-    String localTargetCategory = existingStream?.subtitle ?? _targetCategory;
+    bool isHidden = existingStream?.isHidden ?? false;
+    
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return StreamBuilder<List<CategoryModel>>(
+          stream: _firebaseService.getCategories(),
+          builder: (context, snapshot) {
+            final categories = snapshot.data ?? [];
+            String localCategoryId = existingStream?.categoryId ?? (categories.isNotEmpty ? categories[0].id : 'live_tv');
+
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                final colorScheme = Theme.of(context).colorScheme;
+                final selectedCategory = categories.firstWhere((c) => c.id == localCategoryId, orElse: () => categories.isNotEmpty ? categories[0] : CategoryModel(id: 'live_tv', name: 'Live TV', icon: 'tv'));
+
+                return AlertDialog(
+                  title: Text(existingStream == null ? "Add Channel" : "Edit Channel"),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (categories.isEmpty)
+                          const Text("Please add a category first!", style: TextStyle(color: Colors.red))
+                        else
+                          DropdownButton<String>(
+                            value: localCategoryId,
+                            isExpanded: true,
+                            items: categories.map((CategoryModel cat) {
+                              return DropdownMenuItem<String>(value: cat.id, child: Text(cat.name));
+                            }).toList(),
+                            onChanged: (newValue) => setDialogState(() => localCategoryId = newValue!),
+                          ),
+                        TextField(
+                          controller: titleController,
+                          decoration: const InputDecoration(labelText: 'Display Title'),
+                        ),
+                        TextField(
+                          controller: urlController,
+                          decoration: const InputDecoration(labelText: 'Stream URL'),
+                        ),
+                        TextField(
+                          controller: team1LogoController,
+                          decoration: const InputDecoration(labelText: 'Logo / Icon URL'),
+                        ),
+                        SwitchListTile(
+                          title: const Text("Hide Channel"),
+                          value: isHidden,
+                          onChanged: (v) => setDialogState(() => isHidden = v),
+                        ),
+                        if (selectedCategory.name.toLowerCase().contains("sport")) ...[
+                          const Divider(),
+                          const Text("Match Details", style: TextStyle(fontWeight: FontWeight.bold)),
+                          TextField(controller: team1NameController, decoration: const InputDecoration(labelText: 'Team 1 Name')),
+                          TextField(controller: team1LogoController, decoration: const InputDecoration(labelText: 'Team 1 Logo URL')),
+                          const SizedBox(height: 10),
+                          Text("VS", style: TextStyle(color: colorScheme.primary)),
+                          TextField(controller: team2NameController, decoration: const InputDecoration(labelText: 'Team 2 Name')),
+                          TextField(controller: team2LogoController, decoration: const InputDecoration(labelText: 'Team 2 Logo URL')),
+                        ],
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+                    ElevatedButton(
+                      onPressed: categories.isEmpty ? null : () {
+                        final data = {
+                          'title': titleController.text,
+                          'streamUrl': urlController.text,
+                          'subtitle': selectedCategory.name,
+                          'categoryId': localCategoryId,
+                          'team1Name': team1NameController.text,
+                          'team1Logo': team1LogoController.text,
+                          'team2Name': selectedCategory.name.toLowerCase().contains("sport") ? team2NameController.text : "Live TV",
+                          'team2Logo': team2LogoController.text,
+                          'status': 'live',
+                          'isHidden': isHidden,
+                          'startTime': existingStream?.startTime ?? Timestamp.now(),
+                        };
+
+                        if (existingStream != null) {
+                          _firebaseService.updateStream(existingStream.id, data);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated successfully!')));
+                        } else {
+                          FirebaseFirestore.instance.collection('streams').add(data);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Added successfully!')));
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: const Text("Save"),
+                    ),
+                  ],
+                );
+              }
+            );
+          }
+        );
+      },
+    );
+  }
+
+  // Category Management Dialog
+  Future<void> _showCategoryDialog({CategoryModel? category}) async {
+    _catNameController.text = category?.name ?? '';
+    String selectedIcon = category?.icon ?? 'tv';
+    _catPriorityController.text = category?.priority.toString() ?? '0';
+    bool isHidden = category?.isHidden ?? false;
+
+    final List<Map<String, dynamic>> iconOptions = [
+      {'name': 'tv', 'icon': Icons.tv_rounded},
+      {'name': 'sports', 'icon': Icons.sports_soccer_rounded},
+      {'name': 'movie', 'icon': Icons.movie_rounded},
+      {'name': 'music', 'icon': Icons.music_note_rounded},
+      {'name': 'news', 'icon': Icons.newspaper_rounded},
+      {'name': 'category', 'icon': Icons.category_rounded},
+    ];
 
     return showDialog(
       context: context,
       builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text(existingStream == null ? "Add Channel" : "Edit Channel"),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DropdownButton<String>(
-                      value: localTargetCategory,
-                      isExpanded: true,
-                      items: ["Live TV", "Live Sports"].map((String value) {
-                        return DropdownMenuItem<String>(value: value, child: Text(value));
-                      }).toList(),
-                      onChanged: (newValue) => setDialogState(() => localTargetCategory = newValue!),
-                    ),
-                    TextField(
-                      controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Display Title'),
-                    ),
-                    TextField(
-                      controller: urlController,
-                      decoration: const InputDecoration(labelText: 'Stream URL'),
-                    ),
-                    TextField(
-                      controller: team1LogoController,
-                      decoration: const InputDecoration(labelText: 'Logo / Icon URL'),
-                    ),
-                    if (localTargetCategory == "Live Sports") ...[
-                      const Divider(),
-                      const Text("Match Details", style: TextStyle(fontWeight: FontWeight.bold)),
-                      TextField(controller: team1NameController, decoration: const InputDecoration(labelText: 'Team 1 Name')),
-                      TextField(controller: team1LogoController, decoration: const InputDecoration(labelText: 'Team 1 Logo URL')),
-                      const SizedBox(height: 10),
-                      Text("VS", style: TextStyle(color: colorScheme.primary)),
-                      TextField(controller: team2NameController, decoration: const InputDecoration(labelText: 'Team 2 Name')),
-                      TextField(controller: team2LogoController, decoration: const InputDecoration(labelText: 'Team 2 Logo URL')),
-                    ],
-                  ],
-                ),
+              title: Text(category == null ? "Add Category" : "Edit Category"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(controller: _catNameController, decoration: const InputDecoration(labelText: 'Category Name')),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedIcon,
+                    decoration: const InputDecoration(labelText: 'Select Icon'),
+                    items: iconOptions.map((opt) {
+                      return DropdownMenuItem<String>(
+                        value: opt['name'],
+                        child: Row(
+                          children: [
+                            Icon(opt['icon'], size: 20),
+                            const SizedBox(width: 12),
+                            Text(opt['name'].toString().toUpperCase()),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setDialogState(() => selectedIcon = val!),
+                  ),
+                  TextField(controller: _catPriorityController, decoration: const InputDecoration(labelText: 'Priority (0, 1, 2...)'), keyboardType: TextInputType.number),
+                  SwitchListTile(
+                    title: const Text("Hide Category"),
+                    value: isHidden,
+                    onChanged: (v) => setDialogState(() => isHidden = v),
+                  ),
+                ],
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
                 ElevatedButton(
                   onPressed: () {
+                    final id = category?.id ?? _catNameController.text.toLowerCase().replaceAll(' ', '_');
                     final data = {
-                      'title': titleController.text,
-                      'streamUrl': urlController.text,
-                      'subtitle': localTargetCategory,
-                      'categoryId': localTargetCategory.toLowerCase().replaceAll(' ', '_'),
-                      'team1Name': team1NameController.text,
-                      'team1Logo': team1LogoController.text,
-                      'team2Name': localTargetCategory == "Live Sports" ? team2NameController.text : "Live TV",
-                      'team2Logo': team2LogoController.text,
-                      'status': 'live',
-                      'startTime': existingStream?.startTime ?? Timestamp.now(),
+                      'name': _catNameController.text,
+                      'icon': selectedIcon,
+                      'priority': int.tryParse(_catPriorityController.text) ?? 0,
+                      'isHidden': isHidden,
                     };
-
-                    if (existingStream != null) {
-                      _firebaseService.updateStream(existingStream.id, data);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated successfully!')));
-                    } else {
-                      FirebaseFirestore.instance.collection('streams').add(data);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Added successfully!')));
-                    }
+                    _firebaseService.saveCategory(id, data);
                     Navigator.pop(context);
                   },
                   child: const Text("Save"),
@@ -206,9 +318,6 @@ class _AdminScreenState extends State<AdminScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // In a real-world scenario with FCM, you would call a Cloud Function here.
-      // For now, we will store the notification in a Firestore collection 
-      // which a background task or your backend can process.
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': title,
         'body': body,
@@ -237,7 +346,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: _isSearching
@@ -267,14 +376,47 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
           ],
           bottom: TabBar(
+            isScrollable: true,
             indicatorColor: colorScheme.primary,
             labelColor: colorScheme.primary,
             unselectedLabelColor: colorScheme.onSurfaceVariant,
+            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             tabs: const [
-              Tab(text: "Search & Add", icon: Icon(Icons.playlist_add)),
-              Tab(text: "Manage Saved", icon: Icon(Icons.storage)),
-              Tab(text: "Notifications", icon: Icon(Icons.notifications_active)),
-              Tab(text: "Settings", icon: Icon(Icons.settings)),
+              Tab(
+                icon: Icon(Icons.playlist_add),
+                child: SizedBox(
+                  width: 70,
+                  child: Text("Search & Add", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
+                ),
+              ),
+              Tab(
+                icon: Icon(Icons.storage),
+                child: SizedBox(
+                  width: 70,
+                  child: Text("Manage Channels", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
+                ),
+              ),
+              Tab(
+                icon: Icon(Icons.category),
+                child: SizedBox(
+                  width: 70,
+                  child: Text("Manage Categories", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
+                ),
+              ),
+              Tab(
+                icon: Icon(Icons.notifications_active),
+                child: SizedBox(
+                  width: 70,
+                  child: Text("Send Push", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
+                ),
+              ),
+              Tab(
+                icon: Icon(Icons.settings),
+                child: SizedBox(
+                  width: 70,
+                  child: Text("App Settings", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
+                ),
+              ),
             ],
           ),
         ),
@@ -282,11 +424,58 @@ class _AdminScreenState extends State<AdminScreen> {
           children: [
             _buildScraperTab(colorScheme),
             _buildDatabaseTab(colorScheme),
+            _buildCategoryTab(colorScheme),
             _buildNotificationTab(colorScheme),
             _buildSettingsTab(colorScheme),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCategoryTab(ColorScheme colorScheme) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: ElevatedButton.icon(
+            onPressed: () => _showCategoryDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text("Add New Category"),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<CategoryModel>>(
+            stream: _firebaseService.getCategories(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final cats = snapshot.data!;
+              return ListView.builder(
+                itemCount: cats.length,
+                itemBuilder: (context, index) {
+                  final cat = cats[index];
+                  return ListTile(
+                    leading: Icon(_getIconData(cat.icon), color: cat.isHidden ? Colors.grey : colorScheme.primary),
+                    title: Text(cat.name, style: TextStyle(decoration: cat.isHidden ? TextDecoration.lineThrough : null)),
+                    subtitle: Text("ID: ${cat.id} | Priority: ${cat.priority}"),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(cat.isHidden ? Icons.visibility_off : Icons.visibility, color: cat.isHidden ? Colors.grey : Colors.blue),
+                          onPressed: () => _firebaseService.saveCategory(cat.id, {'isHidden': !cat.isHidden}),
+                        ),
+                        IconButton(icon: const Icon(Icons.edit, color: Colors.orange), onPressed: () => _showCategoryDialog(category: cat)),
+                        IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _firebaseService.deleteCategory(cat.id)),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -464,11 +653,15 @@ class _AdminScreenState extends State<AdminScreen> {
               leading: stream.team1Logo.isNotEmpty 
                   ? Image.network(stream.team1Logo, width: 40, errorBuilder: (c, e, s) => const Icon(Icons.tv))
                   : const Icon(Icons.tv),
-              title: Text(stream.title, style: TextStyle(color: colorScheme.onSurface)),
+              title: Text(stream.title, style: TextStyle(color: stream.isHidden ? Colors.grey : colorScheme.onSurface, decoration: stream.isHidden ? TextDecoration.lineThrough : null)),
               subtitle: Text("${stream.subtitle} | ${stream.streamUrl}", maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colorScheme.onSurfaceVariant)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  IconButton(
+                    icon: Icon(stream.isHidden ? Icons.visibility_off : Icons.visibility, color: stream.isHidden ? Colors.grey : Colors.blue),
+                    onPressed: () => _firebaseService.updateStream(stream.id, {'isHidden': !stream.isHidden}),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.play_arrow, color: Colors.green),
                     onPressed: () {

@@ -4,11 +4,15 @@ class CategoryModel {
   final String id;
   final String name;
   final String icon;
+  final bool isHidden;
+  final int priority;
 
   CategoryModel({
     required this.id,
     required this.name,
     required this.icon,
+    this.isHidden = false,
+    this.priority = 0,
   });
 
   factory CategoryModel.fromFirestore(DocumentSnapshot doc) {
@@ -16,8 +20,19 @@ class CategoryModel {
     return CategoryModel(
       id: doc.id,
       name: data['name'] ?? '',
-      icon: data['icon'] ?? '',
+      icon: data['icon'] ?? 'tv',
+      isHidden: data['isHidden'] ?? false,
+      priority: data['priority'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'icon': icon,
+      'isHidden': isHidden,
+      'priority': priority,
+    };
   }
 }
 
@@ -33,6 +48,7 @@ class StreamModel {
   final String streamUrl;
   final DateTime startTime;
   final String status; // 'live', 'upcoming', 'recent'
+  final bool isHidden;
 
   StreamModel({
     required this.id,
@@ -46,6 +62,7 @@ class StreamModel {
     required this.streamUrl,
     required this.startTime,
     required this.status,
+    this.isHidden = false,
   });
 
   factory StreamModel.fromFirestore(DocumentSnapshot doc) {
@@ -62,6 +79,7 @@ class StreamModel {
       streamUrl: data['streamUrl'] ?? '',
       startTime: (data['startTime'] as Timestamp).toDate(),
       status: data['status'] ?? 'upcoming',
+      isHidden: data['isHidden'] ?? false,
     );
   }
 }

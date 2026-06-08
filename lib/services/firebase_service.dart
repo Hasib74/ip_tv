@@ -46,23 +46,48 @@ class FirebaseService {
 
   // ... (rest of the existing methods)
 
-  // Get all categories
-  Stream<List<CategoryModel>> getCategories() {
-    return _db.collection('categories').snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => CategoryModel.fromFirestore(doc)).toList());
+  // Get all categories and filter/sort in code to avoid composite index errors
+  Stream<List<CategoryModel>> getCategories({bool includeHidden = true}) {
+    return _db.collection('categories').snapshots().map((snapshot) {
+      List<CategoryModel> cats = snapshot.docs.map((doc) => CategoryModel.fromFirestore(doc)).toList();
+      
+      if (!includeHidden) {
+        cats = cats.where((c) => !c.isHidden).toList();
+      }
+      
+      // Sort by priority in memory
+      cats.sort((a, b) => a.priority.compareTo(b.priority));
+      return cats;
+    });
   }
 
-  // Get streams by category
-  Stream<List<StreamModel>> getStreams({String? categoryId}) {
-    // query simple রাখা হয়েছে যাতে composite index এরর না দেয়
+  // Add/Update category
+  Future<void> saveCategory(String id, Map<String, dynamic> data) async {
+    await _db.collection('categories').doc(id).set(data, SetOptions(merge: true));
+  }
+
+  // Delete category
+  Future<void> deleteCategory(String id) async {
+    await _db.collection('categories').doc(id).delete();
+  }
+
+  // Get streams and filter in code to avoid index requirement
+  Stream<List<StreamModel>> getStreams({String? categoryId, bool includeHidden = true}) {
     Query query = _db.collection('streams');
 
     if (categoryId != null && categoryId != 'all') {
       query = query.where('categoryId', isEqualTo: categoryId);
     }
 
-    return query.snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => StreamModel.fromFirestore(doc)).toList());
+    return query.snapshots().map((snapshot) {
+      List<StreamModel> streams = snapshot.docs.map((doc) => StreamModel.fromFirestore(doc)).toList();
+      
+      if (!includeHidden) {
+        streams = streams.where((s) => !s.isHidden).toList();
+      }
+      
+      return streams;
+    });
   }
 
   // Delete a stream
