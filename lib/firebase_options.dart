@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 class DefaultFirebaseOptions {
-  static FirebaseOptions get currentPlatform {
+  static FirebaseOptions get  currentPlatform {
     if (kIsWeb) {
       throw UnsupportedError('DefaultFirebaseOptions have not been configured for web');
     }
@@ -19,7 +19,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBJdRhUmzzODG3Fui4MyZOzcARJWbk-eEk',
-    appId: '1:781909343868:android:88cbcbc63c0a9e060953f9',
+    appId: '1:781909343868:android:9711cd436cceb31f0953f9',
     messagingSenderId: '781909343868',
     projectId: 'iptv-e14c0',
     storageBucket: 'iptv-e14c0.firebasestorage.app',

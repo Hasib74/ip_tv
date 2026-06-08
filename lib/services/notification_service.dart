@@ -9,9 +9,25 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static Future<void> initialize() async {
-    // 1. Request Permission
-    if (Platform.isAndroid) {
-      await Permission.notification.request();
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    // 1. Request Permission using Firebase Messaging
+    NotificationSettings settingsMsg = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    if (settingsMsg.authorizationStatus == AuthorizationStatus.authorized) {
+      debugPrint('User granted permission');
+    } else if (settingsMsg.authorizationStatus == AuthorizationStatus.provisional) {
+      debugPrint('User granted provisional permission');
+    } else {
+      debugPrint('User declined or has not accepted permission');
     }
 
     // 2. Initializing for Android
@@ -54,13 +70,16 @@ class NotificationService {
 
   static Future<void> showNotification(RemoteMessage message) async {
     RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
+    Map<String, dynamic> data = message.data;
 
-    if (notification != null) {
+    String? title = notification?.title ?? data['title'];
+    String? body = notification?.body ?? data['body'];
+
+    if (title != null || body != null) {
       await _localNotificationsPlugin.show(
         notification.hashCode,
-        notification.title,
-        notification.body,
+        title,
+        body,
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel',

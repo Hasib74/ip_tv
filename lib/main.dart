@@ -31,7 +31,7 @@ void main()  async{
 
     // Foreground notification listener
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint("Foreground message: ${message.notification?.title}");
+      debugPrint("Foreground message received: Title: ${message.notification?.title}, Data: ${message.data}");
       NotificationService.showNotification(message);
     });
 
