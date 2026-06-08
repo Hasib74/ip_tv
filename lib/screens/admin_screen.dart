@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,6 +19,9 @@ class _AdminScreenState extends State<AdminScreen> {
   bool _isLoading = false;
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _notifTitleController = TextEditingController();
+  final TextEditingController _notifBodyController = TextEditingController();
+  
   String _searchQuery = "";
   bool _isSearching = false;
   final String _targetCategory = "Live TV";
@@ -170,12 +174,52 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<void> _sendNotification() async {
+    final title = _notifTitleController.text.trim();
+    final body = _notifBodyController.text.trim();
+
+    if (title.isEmpty || body.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter title and message')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // In a real-world scenario with FCM, you would call a Cloud Function here.
+      // For now, we will store the notification in a Firestore collection 
+      // which a background task or your backend can process.
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': title,
+        'body': body,
+        'createdAt': Timestamp.now(),
+        'status': 'pending',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Notification queued for sending!')),
+        );
+        _notifTitleController.clear();
+        _notifBodyController.clear();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: _isSearching
@@ -211,6 +255,7 @@ class _AdminScreenState extends State<AdminScreen> {
             tabs: const [
               Tab(text: "Search & Add", icon: Icon(Icons.playlist_add)),
               Tab(text: "Manage Saved", icon: Icon(Icons.storage)),
+              Tab(text: "Notifications", icon: Icon(Icons.notifications_active)),
             ],
           ),
         ),
@@ -218,6 +263,7 @@ class _AdminScreenState extends State<AdminScreen> {
           children: [
             _buildScraperTab(colorScheme),
             _buildDatabaseTab(colorScheme),
+            _buildNotificationTab(colorScheme),
           ],
         ),
       ),
@@ -321,6 +367,12 @@ class _AdminScreenState extends State<AdminScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.play_arrow, color: Colors.green),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => PlayerScreen(stream: stream)));
+                    },
+                  ),
                   IconButton(icon: const Icon(Icons.edit, color: Colors.orange), onPressed: () => _showAddDialog(existingStream: stream)),
                   IconButton(icon: Icon(Icons.delete, color: colorScheme.error), onPressed: () => _deleteChannel(stream.id)),
                 ],
@@ -329,6 +381,82 @@ class _AdminScreenState extends State<AdminScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildNotificationTab(ColorScheme colorScheme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Send Push Notification',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorScheme.primary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Broadcast a message to all app users immediately.',
+            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _notifTitleController,
+            decoration: InputDecoration(
+              labelText: 'Notification Title',
+              hintText: 'e.g., Live Match Starting!',
+              prefixIcon: const Icon(Icons.title_rounded),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _notifBodyController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              labelText: 'Message Body',
+              hintText: 'e.g., Bangladesh vs India is now live. Watch now on SponT TV!',
+              prefixIcon: const Icon(Icons.message_rounded),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : _sendNotification,
+              icon: _isLoading 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.send_rounded),
+              label: Text(
+                _isLoading ? 'Processing...' : 'Send Broadcast Notification',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+          const Divider(),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(Icons.info_outline_rounded, size: 16, color: colorScheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Note: This will add a record to the "notifications" collection. Use a Firebase Cloud Function to listen to this collection and trigger actual FCM delivery.',
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

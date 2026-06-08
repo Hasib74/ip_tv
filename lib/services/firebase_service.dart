@@ -1,8 +1,34 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import '../models/stream_model.dart';
 
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // Save/Update Device Token for Push Notifications
+  Future<void> saveDeviceToken() async {
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _db.collection('user_tokens').doc(token).set({
+          'token': token,
+          'platform': defaultTargetPlatform.toString(),
+          'lastActive': Timestamp.now(),
+        });
+      }
+    } catch (e) {
+      debugPrint("Error saving device token: $e");
+    }
+  }
+
+  // Get all user tokens for broadcasting
+  Future<List<String>> getAllUserTokens() async {
+    final snapshot = await _db.collection('user_tokens').get();
+    return snapshot.docs.map((doc) => doc.data()['token'] as String).toList();
+  }
+
+  // ... (rest of the existing methods)
 
   // Get all categories
   Stream<List<CategoryModel>> getCategories() {

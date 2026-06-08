@@ -1,13 +1,53 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
+import 'services/firebase_service.dart';
 
-void main() {
+// Background message handler
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint("Handling a background message: ${message.messageId}");
+}
+
+void main()  async{
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // Initialize Local Notifications and Permissions
+    await NotificationService.initialize();
+    
+    // Set background message listener
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // Foreground notification listener
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint("Foreground message: ${message.notification?.title}");
+      NotificationService.showNotification(message);
+    });
+
+    // Save user FCM token to Firestore for later use
+    FirebaseService().saveDeviceToken();
+
+  } catch (e) {
+    debugPrint("Firebase/Notification initialization failed: $e");
+  }
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+
+
 
   @override
   Widget build(BuildContext context) {
