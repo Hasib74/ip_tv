@@ -81,7 +81,7 @@ class AdService {
     _interstitialCounter++;
     
     // Show ad every 4th time (after 3 changes)
-    if (_interstitialCounter % 4 == 0 && _interstitialAd != null) {
+    if (_interstitialCounter % 6 == 0 && _interstitialAd != null) {
       _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
