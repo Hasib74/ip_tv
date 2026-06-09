@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 class AdService {
   static AppOpenAd? _appOpenAd;
   static bool _isShowingAd = false;
+  static bool _isLoadingAppOpenAd = false;
+  static bool _appOpenAdShownOnce = false; // এক সেশনে একবার দেখানোর জন্য
+  
   static InterstitialAd? _interstitialAd;
   static int _interstitialCounter = 0;
 
@@ -29,15 +32,19 @@ class AdService {
 
   // --- App Open Ad ---
   static void loadAppOpenAd() {
+    if (_appOpenAd != null || _isLoadingAppOpenAd) return;
+
+    _isLoadingAppOpenAd = true;
     AppOpenAd.load(
       adUnitId: appOpenUnitId,
       request: const AdRequest(),
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (ad) {
           _appOpenAd = ad;
-          showAppOpenAdIfAvailable();
+          _isLoadingAppOpenAd = false;
         },
         onAdFailedToLoad: (error) {
+          _isLoadingAppOpenAd = false;
           debugPrint('AppOpenAd failed to load: $error');
         },
       ),
@@ -45,15 +52,24 @@ class AdService {
   }
 
   static void showAppOpenAdIfAvailable() {
-    if (_appOpenAd == null || _isShowingAd) return;
+    // যদি একবার দেখানো হয়ে থাকে, তবে আর দেখাবে না
+    if (_appOpenAdShownOnce) return;
+
+    if (_appOpenAd == null || _isShowingAd) {
+      loadAppOpenAd();
+      return;
+    }
 
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdShowedFullScreenContent: (ad) => _isShowingAd = true,
+      onAdShowedFullScreenContent: (ad) {
+        _isShowingAd = true;
+        _appOpenAdShownOnce = true; // এখানে একবার দেখানো হয়েছে বলে মার্ক করা হলো
+      },
       onAdDismissedFullScreenContent: (ad) {
         _isShowingAd = false;
         ad.dispose();
         _appOpenAd = null;
-        loadAppOpenAd();
+        // আমরা আর loadAppOpenAd() কল করবো না যদি এক সেশনে একবারই দেখাতে চাই
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         _isShowingAd = false;
@@ -80,8 +96,8 @@ class AdService {
   static void showInterstitialAd(BuildContext context, VoidCallback onAdClosed) {
     _interstitialCounter++;
     
-    // Show ad every 4th time (after 3 changes)
-    if (_interstitialCounter % 12 == 0 && _interstitialAd != null) {
+    // Show ad every 8th time
+    if (_interstitialCounter % 8 == 0 && _interstitialAd != null) {
       _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
