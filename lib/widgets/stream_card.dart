@@ -1,28 +1,87 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/stream_model.dart';
 import '../screens/player_screen.dart';
 
-class StreamCard extends StatelessWidget {
+class StreamCard extends StatefulWidget {
   final StreamModel stream;
 
   const StreamCard({super.key, required this.stream});
 
   @override
+  State<StreamCard> createState() => _StreamCardState();
+}
+
+class _StreamCardState extends State<StreamCard> {
+  Timer? _timer;
+  late DateTime _now;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    if (widget.stream.isScheduled) {
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _now = DateTime.now();
+        });
+        if (_now.isAfter(widget.stream.startTime)) {
+          _timer?.cancel();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _getCountdownText() {
+    final difference = widget.stream.startTime.difference(_now);
+    if (difference.isNegative) return "LIVE";
+
+    final hours = difference.inHours.toString().padLeft(2, '0');
+    final minutes = (difference.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (difference.inSeconds % 60).toString().padLeft(2, '0');
+
+    return "$hours:$minutes:$seconds";
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isStarted = !widget.stream.isScheduled || _now.isAfter(widget.stream.startTime);
+    final countdownStr = widget.stream.isScheduled ? _getCountdownText() : "LIVE";
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => PlayerScreen(stream: stream)),
-      ),
+      onTap: () {
+        if (isStarted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PlayerScreen(stream: widget.stream)),
+          );
+        } else {
+          _showMatchInfoSheet(context, cs, countdownStr);
+        }
+      },
       child: Container(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: cs.outline.withOpacity(0.12)),
+          border: Border.all(
+            color: isStarted ? cs.primary.withOpacity(0.3) : cs.outline.withOpacity(0.12),
+            width: isStarted ? 1.2 : 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: cs.shadow.withOpacity(0.08),
@@ -39,20 +98,40 @@ class StreamCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: cs.primaryContainer.withOpacity(0.25),
+                  color: isStarted 
+                    ? cs.primaryContainer.withOpacity(0.25)
+                    : cs.surfaceVariant.withOpacity(0.3),
                   border: Border(
                     bottom: BorderSide(color: cs.primary.withOpacity(0.08)),
                   ),
                 ),
                 child: Row(
                   children: [
-                    // LIVE badge
-                    _LivePill(cs: cs),
+                    // Badge (LIVE or Countdown)
+                    if (isStarted) 
+                      _LivePill(cs: cs)
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          countdownStr,
+                          style: TextStyle(
+                            color: cs.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
                     const SizedBox(width: 10),
                     // Title
                     Expanded(
                       child: Text(
-                        stream.title,
+                        widget.stream.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -64,7 +143,7 @@ class StreamCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Time
+                    // Time/Date
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
@@ -72,7 +151,7 @@ class StreamCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        DateFormat('hh:mm a').format(stream.startTime),
+                        DateFormat('hh:mm a').format(widget.stream.startTime),
                         style: TextStyle(
                           color: cs.primary,
                           fontSize: 10.5,
@@ -90,9 +169,9 @@ class StreamCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
                 child: Row(
                   children: [
-                    Expanded(child: _buildTeam(cs, stream.team1Name, stream.team1Logo)),
-                    _buildVSBadge(cs),
-                    Expanded(child: _buildTeam(cs, stream.team2Name, stream.team2Logo)),
+                    Expanded(child: _buildTeam(cs, widget.stream.team1Name, widget.stream.team1Logo)),
+                    _buildVSBadge(cs, isStarted),
+                    Expanded(child: _buildTeam(cs, widget.stream.team2Name, widget.stream.team2Logo)),
                   ],
                 ),
               ),
@@ -100,6 +179,190 @@ class StreamCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showMatchInfoSheet(BuildContext context, ColorScheme cs, String initialCountdown) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          // Internal timer for the sheet
+          return StreamBuilder(
+            stream: Stream.periodic(const Duration(seconds: 1)),
+            builder: (context, snapshot) {
+              final currentCountdown = _getCountdownText();
+              final isNowStarted = !widget.stream.isScheduled || DateTime.now().isAfter(widget.stream.startTime);
+
+              if (isNowStarted) {
+                // If match starts while sheet is open, we can auto-close or update UI
+                Future.microtask(() => Navigator.pop(context));
+              }
+
+              return Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  border: Border.all(color: cs.primary.withOpacity(0.1)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    
+                    Text(
+                      "Upcoming Match",
+                      style: TextStyle(
+                        color: cs.primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Match Title
+                    Text(
+                      widget.stream.title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Visual VS Area
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildSheetTeam(cs, widget.stream.team1Name, widget.stream.team1Logo),
+                        Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: cs.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Text(
+                                "VS",
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        _buildSheetTeam(cs, widget.stream.team2Name, widget.stream.team2Logo),
+                      ],
+                    ),
+
+                    const SizedBox(height: 40),
+                    
+                    // Info Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.access_time_rounded, color: cs.primary, size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                "Starts in $currentCountdown",
+                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Match starts at ${DateFormat('MMM dd, hh:mm a').format(widget.stream.startTime)} GMT",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Close Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: cs.primary,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          "Got it, Notify me!",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              );
+            }
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSheetTeam(ColorScheme cs, String name, String logo) {
+    return Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            shape: BoxShape.circle,
+          ),
+          child: CachedNetworkImage(
+            imageUrl: logo,
+            fit: BoxFit.contain,
+            errorWidget: (_, __, ___) => const Icon(Icons.sports_soccer, color: Colors.white10, size: 40),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: 90,
+          child: Text(
+            name,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ),
+      ],
     );
   }
 
@@ -119,14 +382,18 @@ class StreamCard extends StatelessWidget {
             imageUrl: logo,
             fit: BoxFit.contain,
             placeholder: (_, __) => Icon(
-              Icons.sports_soccer_rounded,
-              color: cs.onSurface.withOpacity(0.2),
-              size: 28,
+              widget.stream.subtitle.toLowerCase().contains('sport')
+                  ? Icons.sports_soccer_rounded
+                  : Icons.tv_rounded,
+              color: cs.onSurface.withOpacity(0.12),
+              size: 32,
             ),
             errorWidget: (_, __, ___) => Icon(
-              Icons.broken_image_outlined,
-              color: cs.onSurface.withOpacity(0.2),
-              size: 28,
+              widget.stream.subtitle.toLowerCase().contains('sport')
+                  ? Icons.sports_soccer_rounded
+                  : Icons.tv_rounded,
+              color: cs.onSurface.withOpacity(0.12),
+              size: 32,
             ),
           ),
         ),
@@ -147,7 +414,7 @@ class StreamCard extends StatelessWidget {
     );
   }
 
-  Widget _buildVSBadge(ColorScheme cs) {
+  Widget _buildVSBadge(ColorScheme cs, bool isStarted) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
@@ -159,19 +426,16 @@ class StreamCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  cs.primary,
-                  cs.secondary,
-                ],
+                colors: isStarted ? [cs.primary, cs.secondary] : [Colors.grey.shade700, Colors.grey.shade900],
               ),
               shape: BoxShape.circle,
-              boxShadow: [
+              boxShadow: isStarted ? [
                 BoxShadow(
                   color: cs.primary.withOpacity(0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
-              ],
+              ] : [],
             ),
             child: const Center(
               child: Text(
@@ -187,7 +451,7 @@ class StreamCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            DateFormat('dd MMM').format(stream.startTime),
+            DateFormat('dd MMM').format(widget.stream.startTime),
             style: TextStyle(
               color: cs.onSurface.withOpacity(0.4),
               fontSize: 10,

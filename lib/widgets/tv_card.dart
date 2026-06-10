@@ -70,16 +70,20 @@ class TvCard extends StatelessWidget {
                           fit: BoxFit.contain,
                           placeholder: (_, __) => Center(
                             child: Icon(
-                              Icons.tv_rounded,
-                              color: cs.primary.withOpacity(0.25),
-                              size: 36,
+                              stream.subtitle.toLowerCase().contains('sport')
+                                  ? Icons.sports_soccer_rounded
+                                  : Icons.tv_rounded,
+                              color: cs.onSurface.withOpacity(0.12),
+                              size: 40,
                             ),
                           ),
                           errorWidget: (_, __, ___) => Center(
                             child: Icon(
-                              Icons.broken_image_outlined,
-                              color: cs.onSurface.withOpacity(0.15),
-                              size: 32,
+                              stream.subtitle.toLowerCase().contains('sport')
+                                  ? Icons.sports_soccer_rounded
+                                  : Icons.tv_rounded,
+                              color: cs.onSurface.withOpacity(0.12),
+                              size: 40,
                             ),
                           ),
                         ),

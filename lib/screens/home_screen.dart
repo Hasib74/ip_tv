@@ -21,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late FirebaseService _firebaseService;
   String? _selectedCategoryId;
+  String _sportsSubCategory = 'live_match'; // 'live_match' or 'sports_tv'
   String _searchQuery = '';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -334,210 +335,325 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Stream List with Ad Injection ──────────────────────────────────────────
   Widget _buildStreamList(ColorScheme cs, bool isDark, CategoryModel currentCategory) {
-    return StreamBuilder<List<StreamModel>>(
-      stream: _firebaseService.getStreams(categoryId: _selectedCategoryId, includeHidden: false),
-      builder: (context, snapshot) {
-        // ... same loading and error handling ...
-        if (snapshot.hasError) {
-          return _buildState(
-            icon: Icons.error_outline_rounded,
-            label: 'Something went wrong',
-            cs: cs,
-            iconColor: cs.error,
-          );
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: cs.primary,
+    return Column(
+      children: [
+        if (currentCategory.icon == "sports") _buildSportsSubTabs(cs),
+        Expanded(
+          child: StreamBuilder<List<StreamModel>>(
+            stream: _firebaseService.getStreams(categoryId: _selectedCategoryId, includeHidden: false),
+            builder: (context, snapshot) {
+              // ... same loading and error handling ...
+              if (snapshot.hasError) {
+                return _buildState(
+                  icon: Icons.error_outline_rounded,
+                  label: 'Something went wrong',
+                  cs: cs,
+                  iconColor: cs.error,
+                );
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: cs.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Loading streams...',
+                        style: TextStyle(
+                          color: cs.onSurface.withOpacity(0.4),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Loading streams...',
-                  style: TextStyle(
-                    color: cs.onSurface.withOpacity(0.4),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
+                );
+              }
 
-        final list = snapshot.data ?? [];
-        final filtered = list
-            .where((s) => s.title.toLowerCase().contains(_searchQuery))
-            .toList();
+              final list = snapshot.data ?? [];
+              
+              // Filter by subCategory if Sports
+              List<StreamModel> filtered;
+              if (currentCategory.icon == "sports") {
+                filtered = list
+                    .where((s) => s.subCategory == _sportsSubCategory)
+                    .where((s) => s.title.toLowerCase().contains(_searchQuery))
+                    .toList();
+              } else {
+                filtered = list
+                    .where((s) => s.title.toLowerCase().contains(_searchQuery))
+                    .toList();
+              }
 
-        if (filtered.isEmpty) {
-          return _buildState(
-            icon: Icons.tv_off_rounded,
-            label: _searchQuery.isEmpty ? 'No streams available' : 'No results found',
-            cs: cs,
-          );
-        }
+              if (filtered.isEmpty) {
+                return _buildState(
+                  icon: Icons.tv_off_rounded,
+                  label: _searchQuery.isEmpty ? 'No streams available' : 'No results found',
+                  cs: cs,
+                );
+              }
 
-        final key = ValueKey('$_selectedCategoryId|$_searchQuery');
+              final key = ValueKey('$_selectedCategoryId|$_sportsSubCategory|$_searchQuery');
 
-        // --- NEW: Movie View (Premium Immersive Look) ---
-        if (currentCategory.icon == "movie") {
-          final featuredMovie = filtered.first;
-          final remainingMovies = filtered.skip(1).toList();
-          final List<Widget> slivers = [];
+              // --- Sports SubCategory: Sports TV (Grid View) ---
+              if (currentCategory.icon == "sports" && _sportsSubCategory == "sports_tv") {
+                final List<Widget> slivers = [];
+                for (var i = 0; i < filtered.length; i += 6) {
+                  final chunk = filtered.skip(i).take(6).toList();
 
-          // 1. Featured Movie (Full Width)
-          slivers.add(
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: _buildFeaturedMovie(cs, featuredMovie),
-              ),
-            ),
-          );
-
-          // 2. Remaining Movies Grid
-          for (var i = 0; i < remainingMovies.length; i += 6) {
-            final chunk = remainingMovies.skip(i).take(6).toList();
-
-            slivers.add(
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.7,
-                    mainAxisSpacing: 20,
-                    crossAxisSpacing: 16,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => AnimationConfiguration.staggeredGrid(
-                      position: i + index,
-                      duration: const Duration(milliseconds: 375),
-                      columnCount: 2,
-                      child: ScaleAnimation(
-                        scale: 0.9,
-                        child: FadeInAnimation(
-                          child: MovieCard(stream: chunk[index]),
+                  slivers.add(
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverGrid(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          childAspectRatio: 0.72,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => AnimationConfiguration.staggeredGrid(
+                            position: i + index,
+                            duration: const Duration(milliseconds: 375),
+                            columnCount: 3,
+                            child: ScaleAnimation(
+                              scale: 0.88,
+                              child: FadeInAnimation(child: TvCard(stream: chunk[index])),
+                            ),
+                          ),
+                          childCount: chunk.length,
                         ),
                       ),
                     ),
-                    childCount: chunk.length,
-                  ),
-                ),
-              ),
-            );
+                  );
 
-            if ((i + chunk.length) % 6 == 0) {
-              slivers.add(
-                SliverToBoxAdapter(
-                  child: AdService.getBannerWidget(cs, key: ValueKey('ad_movie_$i')),
-                ),
-              );
-            }
-          }
-
-          return AnimationLimiter(
-            key: key,
-            child: CustomScrollView(
-              slivers: slivers,
-            ),
-          );
-        }
-
-        // Check if category is Sports (List View)
-        if (currentCategory.icon == "sports") {
-          final List<dynamic> itemsWithAds = [];
-          for (var i = 0; i < filtered.length; i++) {
-            itemsWithAds.add(filtered[i]);
-            if ((i + 1) % 6 == 0) {
-              itemsWithAds.add('banner_ad_${i + 1}');
-            }
-          }
-
-          return AnimationLimiter(
-            key: key,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              itemCount: itemsWithAds.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final item = itemsWithAds[i];
-                if (item is String && item.startsWith('banner_ad_')) {
-                  return AdService.getBannerWidget(cs, key: ValueKey(item));
+                  if ((i + chunk.length) % 6 == 0) {
+                    slivers.add(
+                      SliverToBoxAdapter(
+                        child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_sports_$i')),
+                      ),
+                    );
+                  }
                 }
-                return AnimationConfiguration.staggeredList(
-                  position: i,
-                  duration: const Duration(milliseconds: 375),
-                  child: SlideAnimation(
-                    verticalOffset: 40,
-                    child: FadeInAnimation(child: StreamCard(stream: item as StreamModel)),
+
+                return AnimationLimiter(
+                  key: key,
+                  child: CustomScrollView(
+                    slivers: [
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                      ...slivers,
+                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                    ],
                   ),
                 );
-              },
-            ),
-          );
-        }
+              }
 
-        // Default: TV Grid View
-        final List<Widget> slivers = [];
-        for (var i = 0; i < filtered.length; i += 6) {
-          final chunk = filtered.skip(i).take(6).toList();
+              // --- Movie View (Premium Immersive Look) ---
+              if (currentCategory.icon == "movie") {
+                // ... same movie logic ...
+                final featuredMovie = filtered.first;
+                final remainingMovies = filtered.skip(1).toList();
+                final List<Widget> slivers = [];
 
-          slivers.add(
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 0.72,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => AnimationConfiguration.staggeredGrid(
-                    position: i + index,
-                    duration: const Duration(milliseconds: 375),
-                    columnCount: 3,
-                    child: ScaleAnimation(
-                      scale: 0.88,
-                      child: FadeInAnimation(child: TvCard(stream: chunk[index])),
+                slivers.add(
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      child: _buildFeaturedMovie(cs, featuredMovie),
                     ),
                   ),
-                  childCount: chunk.length,
+                );
+
+                for (var i = 0; i < remainingMovies.length; i += 6) {
+                  final chunk = remainingMovies.skip(i).take(6).toList();
+
+                  slivers.add(
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverGrid(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.7,
+                          mainAxisSpacing: 20,
+                          crossAxisSpacing: 16,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => AnimationConfiguration.staggeredGrid(
+                            position: i + index,
+                            duration: const Duration(milliseconds: 375),
+                            columnCount: 2,
+                            child: ScaleAnimation(
+                              scale: 0.9,
+                              child: FadeInAnimation(
+                                child: MovieCard(stream: chunk[index]),
+                              ),
+                            ),
+                          ),
+                          childCount: chunk.length,
+                        ),
+                      ),
+                    ),
+                  );
+
+                  if ((i + chunk.length) % 6 == 0) {
+                    slivers.add(
+                      SliverToBoxAdapter(
+                        child: AdService.getBannerWidget(cs, key: ValueKey('ad_movie_$i')),
+                      ),
+                    );
+                  }
+                }
+
+                return AnimationLimiter(
+                  key: key,
+                  child: CustomScrollView(
+                    slivers: slivers,
+                  ),
+                );
+              }
+
+              // Check if category is Sports: Live Match (List View)
+              if (currentCategory.icon == "sports") {
+                final List<dynamic> itemsWithAds = [];
+                for (var i = 0; i < filtered.length; i++) {
+                  itemsWithAds.add(filtered[i]);
+                  if ((i + 1) % 6 == 0) {
+                    itemsWithAds.add('banner_ad_${i + 1}');
+                  }
+                }
+
+                return AnimationLimiter(
+                  key: key,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    itemCount: itemsWithAds.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) {
+                      final item = itemsWithAds[i];
+                      if (item is String && item.startsWith('banner_ad_')) {
+                        return AdService.getBannerWidget(cs, key: ValueKey(item));
+                      }
+                      return AnimationConfiguration.staggeredList(
+                        position: i,
+                        duration: const Duration(milliseconds: 375),
+                        child: SlideAnimation(
+                          verticalOffset: 40,
+                          child: FadeInAnimation(child: StreamCard(stream: item as StreamModel)),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+
+              // Default: TV Grid View
+              final List<Widget> slivers = [];
+              for (var i = 0; i < filtered.length; i += 6) {
+                final chunk = filtered.skip(i).take(6).toList();
+
+                slivers.add(
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.72,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => AnimationConfiguration.staggeredGrid(
+                          position: i + index,
+                          duration: const Duration(milliseconds: 375),
+                          columnCount: 3,
+                          child: ScaleAnimation(
+                            scale: 0.88,
+                            child: FadeInAnimation(child: TvCard(stream: chunk[index])),
+                          ),
+                        ),
+                        childCount: chunk.length,
+                      ),
+                    ),
+                  ),
+                );
+
+                if ((i + chunk.length) % 6 == 0) {
+                  slivers.add(
+                    SliverToBoxAdapter(
+                      child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_$i')),
+                    ),
+                  );
+                }
+              }
+
+              return AnimationLimiter(
+                key: key,
+                child: CustomScrollView(
+                  slivers: [
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    ...slivers,
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
                 ),
-              ),
-            ),
-          );
-
-          if ((i + chunk.length) % 6 == 0) {
-            slivers.add(
-              SliverToBoxAdapter(
-                child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_$i')),
-              ),
-            );
-          }
-        }
-
-        return AnimationLimiter(
-          key: key,
-          child: CustomScrollView(
-            slivers: [
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
-              ...slivers,
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSportsSubTabs(ColorScheme cs) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _subTabItem("Live Match", "live_match", cs),
+          _subTabItem("Sports TV", "sports_tv", cs),
+        ],
+      ),
+    );
+  }
+
+  Widget _subTabItem(String title, String id, ColorScheme cs) {
+    final isSelected = _sportsSubCategory == id;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _sportsSubCategory = id),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? cs.primary.withOpacity(0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? cs.primary.withOpacity(0.3) : Colors.transparent,
+            ),
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? cs.primary : cs.onSurface.withOpacity(0.5),
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

@@ -37,6 +37,9 @@ void main()  async{
 
     // Save user FCM token to Firestore for later use
     FirebaseService().saveDeviceToken();
+    
+    // Subscribe to a general topic for broadcast notifications
+    FirebaseMessaging.instance.subscribeToTopic('all_users');
 
   } catch (e) {
     debugPrint("Firebase/Notification initialization failed: $e");

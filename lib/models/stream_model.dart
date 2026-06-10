@@ -49,6 +49,8 @@ class StreamModel {
   final DateTime startTime;
   final String status; // 'live', 'upcoming', 'recent'
   final bool isHidden;
+  final String subCategory; // 'live_match', 'sports_tv' for sports category
+  final bool isScheduled;
 
   StreamModel({
     required this.id,
@@ -63,6 +65,8 @@ class StreamModel {
     required this.startTime,
     required this.status,
     this.isHidden = false,
+    this.subCategory = '',
+    this.isScheduled = false,
   });
 
   factory StreamModel.fromFirestore(DocumentSnapshot doc) {
@@ -80,6 +84,8 @@ class StreamModel {
       startTime: (data['startTime'] as Timestamp).toDate(),
       status: data['status'] ?? 'upcoming',
       isHidden: data['isHidden'] ?? false,
+      subCategory: data['subCategory'] ?? '',
+      isScheduled: data['isScheduled'] ?? false,
     );
   }
 }

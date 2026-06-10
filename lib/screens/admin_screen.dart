@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../models/stream_model.dart';
 import '../services/firebase_service.dart';
 import 'player_screen.dart';
@@ -113,6 +114,9 @@ class _AdminScreenState extends State<AdminScreen> {
     final team2NameController = TextEditingController(text: existingStream?.team2Name ?? '');
     final team2LogoController = TextEditingController(text: existingStream?.team2Logo ?? '');
     bool isHidden = existingStream?.isHidden ?? false;
+    bool isScheduled = existingStream?.isScheduled ?? false;
+    DateTime scheduledTime = existingStream?.startTime ?? DateTime.now();
+    String subCategory = existingStream?.subCategory ?? 'live_match';
     
     return showDialog(
       context: context,
@@ -126,7 +130,17 @@ class _AdminScreenState extends State<AdminScreen> {
             return StatefulBuilder(
               builder: (context, setDialogState) {
                 final colorScheme = Theme.of(context).colorScheme;
-                final selectedCategory = categories.firstWhere((c) => c.id == localCategoryId, orElse: () => categories.isNotEmpty ? categories[0] : CategoryModel(id: 'live_tv', name: 'Live TV', icon: 'tv'));
+                
+                // Ensure localCategoryId exists in current categories to avoid Dropdown error
+                bool categoryExists = categories.any((c) => c.id == localCategoryId);
+                if (!categoryExists && categories.isNotEmpty) {
+                  localCategoryId = categories[0].id;
+                }
+
+                final selectedCategory = categories.firstWhere(
+                  (c) => c.id == localCategoryId, 
+                  orElse: () => categories.isNotEmpty ? categories[0] : CategoryModel(id: 'live_tv', name: 'Live TV', icon: 'tv')
+                );
 
                 return AlertDialog(
                   title: Text(existingStream == null ? "Add Channel" : "Edit Channel"),
@@ -145,6 +159,85 @@ class _AdminScreenState extends State<AdminScreen> {
                             }).toList(),
                             onChanged: (newValue) => setDialogState(() => localCategoryId = newValue!),
                           ),
+                        if (selectedCategory.icon == "sports") ...[
+                          const SizedBox(height: 12),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text("Sports Display Type", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: RadioListTile<String>(
+                                    title: const Text("Match", style: TextStyle(fontSize: 12)),
+                                    value: 'live_match',
+                                    contentPadding: EdgeInsets.zero,
+                                    groupValue: subCategory,
+                                    onChanged: (v) => setDialogState(() => subCategory = v!),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: RadioListTile<String>(
+                                    title: const Text("TV", style: TextStyle(fontSize: 12)),
+                                    value: 'sports_tv',
+                                    contentPadding: EdgeInsets.zero,
+                                    groupValue: subCategory,
+                                    onChanged: (v) => setDialogState(() => subCategory = v!),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SwitchListTile(
+                            title: const Text("Schedule Match", style: TextStyle(fontSize: 13)),
+                            value: isScheduled,
+                            onChanged: (v) => setDialogState(() => isScheduled = v),
+                          ),
+                          if (isScheduled) ...[
+                            ListTile(
+                              title: Text("Date: ${DateFormat('dd/MM/yyyy').format(scheduledTime)}", style: const TextStyle(fontSize: 12)),
+                              trailing: const Icon(Icons.calendar_today, size: 18),
+                              onTap: () async {
+                                final now = DateTime.now();
+                                final initialDate = scheduledTime.isBefore(now) ? now : scheduledTime;
+                                final date = await showDatePicker(
+                                  context: context,
+                                  initialDate: initialDate,
+                                  firstDate: initialDate.isBefore(now) ? initialDate : now,
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                );
+                                if (date != null) {
+                                  setDialogState(() {
+                                    scheduledTime = DateTime(date.year, date.month, date.day, scheduledTime.hour, scheduledTime.minute);
+                                  });
+                                }
+                              },
+                            ),
+                            ListTile(
+                              title: Text("Time: ${DateFormat('hh:mm a').format(scheduledTime)}", style: const TextStyle(fontSize: 12)),
+                              trailing: const Icon(Icons.access_time, size: 18),
+                              onTap: () async {
+                                final time = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.fromDateTime(scheduledTime),
+                                );
+                                if (time != null) {
+                                  setDialogState(() {
+                                    scheduledTime = DateTime(scheduledTime.year, scheduledTime.month, scheduledTime.day, time.hour, time.minute);
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ],
                         TextField(
                           controller: titleController,
                           decoration: const InputDecoration(labelText: 'Display Title'),
@@ -162,7 +255,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           value: isHidden,
                           onChanged: (v) => setDialogState(() => isHidden = v),
                         ),
-                        if (selectedCategory.icon == "sports" || selectedCategory.name.toLowerCase().contains("sport")) ...[
+                        if (selectedCategory.icon == "sports" && subCategory == 'live_match') ...[
                           const Divider(),
                           const Text("Match Details", style: TextStyle(fontWeight: FontWeight.bold)),
                           TextField(controller: team1NameController, decoration: const InputDecoration(labelText: 'Team 1 Name')),
@@ -184,13 +277,15 @@ class _AdminScreenState extends State<AdminScreen> {
                           'streamUrl': urlController.text,
                           'subtitle': selectedCategory.name,
                           'categoryId': localCategoryId,
+                          'subCategory': subCategory,
                           'team1Name': team1NameController.text,
                           'team1Logo': team1LogoController.text,
-                          'team2Name': selectedCategory.name.toLowerCase().contains("sport") ? team2NameController.text : "Live TV",
+                          'team2Name': selectedCategory.icon == "sports" && subCategory == 'live_match' ? team2NameController.text : "Live TV",
                           'team2Logo': team2LogoController.text,
                           'status': 'live',
                           'isHidden': isHidden,
-                          'startTime': existingStream?.startTime ?? Timestamp.now(),
+                          'isScheduled': isScheduled,
+                          'startTime': isScheduled ? Timestamp.fromDate(scheduledTime) : Timestamp.now(),
                         };
 
                         if (existingStream != null) {
@@ -318,16 +413,20 @@ class _AdminScreenState extends State<AdminScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 1. Send via FCM Topic
+      await _firebaseService.sendBroadcastNotification(title, body);
+
+      // 2. Log to Firestore for history
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': title,
         'body': body,
         'createdAt': Timestamp.now(),
-        'status': 'pending',
+        'status': 'sent',
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Notification queued for sending!')),
+          const SnackBar(content: Text('Notification sent successfully!')),
         );
         _notifTitleController.clear();
         _notifBodyController.clear();

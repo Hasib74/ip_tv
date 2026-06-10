@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -110,6 +112,41 @@ class FirebaseService {
       return false;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Send FCM Notification (Topic based)
+  // NOTE: This requires your FCM Legacy Server Key. 
+  // For security, it's recommended to do this via Firebase Cloud Functions.
+  Future<void> sendBroadcastNotification(String title, String body) async {
+    const String serverKey = 'YOUR_FCM_SERVER_KEY_HERE'; // User needs to provide this
+    
+    final data = {
+      "to": "/topics/all_users",
+      "notification": {
+        "title": title,
+        "body": body,
+        "sound": "default",
+      },
+      "data": {
+        "click_action": "FLUTTER_NOTIFICATION_CLICK",
+        "id": "1",
+        "status": "done",
+      }
+    };
+
+    try {
+      await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'key=$serverKey',
+        },
+        body: json.encode(data),
+      );
+    } catch (e) {
+      debugPrint("Error sending FCM: $e");
+      rethrow;
     }
   }
 }
