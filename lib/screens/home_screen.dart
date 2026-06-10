@@ -415,9 +415,9 @@ class _HomeScreenState extends State<HomeScreen>
                       sliver: SliverGrid(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
-                          childAspectRatio: 0.72,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
+                          childAspectRatio: 0.75,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) => AnimationConfiguration.staggeredGrid(
@@ -435,12 +435,20 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   );
 
-                  if ((i + chunk.length) % 6 == 0) {
+                  if ((i + chunk.length) % 6 == 0 && (i + chunk.length) < filtered.length) {
                     slivers.add(
                       SliverToBoxAdapter(
-                        child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_sports_$i')),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            AdService.getBannerWidget(cs, key: ValueKey('ad_grid_sports_$i')),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     );
+                  } else {
+                    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
                   }
                 }
 
@@ -565,9 +573,9 @@ class _HomeScreenState extends State<HomeScreen>
                     sliver: SliverGrid(
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
-                        childAspectRatio: 0.72,
-                        mainAxisSpacing: 14,
-                        crossAxisSpacing: 14,
+                        childAspectRatio: 0.75,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) => AnimationConfiguration.staggeredGrid(
@@ -585,12 +593,20 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 );
 
-                if ((i + chunk.length) % 6 == 0) {
+                if ((i + chunk.length) % 6 == 0 && (i + chunk.length) < filtered.length) {
                   slivers.add(
                     SliverToBoxAdapter(
-                      child: AdService.getBannerWidget(cs, key: ValueKey('ad_grid_$i')),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 16),
+                          AdService.getBannerWidget(cs, key: ValueKey('ad_grid_$i')),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
                     ),
                   );
+                } else {
+                  slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
                 }
               }
 

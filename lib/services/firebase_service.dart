@@ -46,8 +46,6 @@ class FirebaseService {
     });
   }
 
-  // ... (rest of the existing methods)
-
   // Get all categories and filter/sort in code to avoid composite index errors
   Stream<List<CategoryModel>> getCategories({bool includeHidden = true}) {
     return _db.collection('categories').snapshots().map((snapshot) {
@@ -88,6 +86,8 @@ class FirebaseService {
         streams = streams.where((s) => !s.isHidden).toList();
       }
       
+      // Sort by priority (Serial)
+      streams.sort((a, b) => a.priority.compareTo(b.priority));
       return streams;
     });
   }
@@ -115,9 +115,30 @@ class FirebaseService {
     }
   }
 
+  // Schedule a notification
+  Future<void> scheduleNotification(String title, String body, DateTime time) async {
+    await _db.collection('scheduled_notifications').add({
+      'title': title,
+      'body': body,
+      'scheduledTime': Timestamp.fromDate(time),
+      'status': 'pending',
+      'createdAt': Timestamp.now(),
+    });
+  }
+
+  // Get all scheduled notifications
+  Stream<QuerySnapshot> getScheduledNotifications() {
+    return _db.collection('scheduled_notifications')
+        .orderBy('scheduledTime', descending: false)
+        .snapshots();
+  }
+
+  // Delete scheduled notification
+  Future<void> deleteScheduledNotification(String id) async {
+    await _db.collection('scheduled_notifications').doc(id).delete();
+  }
+
   // Send FCM Notification (Topic based)
-  // NOTE: This requires your FCM Legacy Server Key. 
-  // For security, it's recommended to do this via Firebase Cloud Functions.
   Future<void> sendBroadcastNotification(String title, String body) async {
     const String serverKey = 'YOUR_FCM_SERVER_KEY_HERE'; // User needs to provide this
     

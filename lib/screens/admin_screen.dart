@@ -113,6 +113,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final team1LogoController = TextEditingController(text: existingStream?.team1Logo ?? channel?['logo'] ?? '');
     final team2NameController = TextEditingController(text: existingStream?.team2Name ?? '');
     final team2LogoController = TextEditingController(text: existingStream?.team2Logo ?? '');
+    final priorityController = TextEditingController(text: (existingStream?.priority ?? 0).toString());
     bool isHidden = existingStream?.isHidden ?? false;
     bool isScheduled = existingStream?.isScheduled ?? false;
     DateTime scheduledTime = existingStream?.startTime ?? DateTime.now();
@@ -250,6 +251,11 @@ class _AdminScreenState extends State<AdminScreen> {
                           controller: team1LogoController,
                           decoration: const InputDecoration(labelText: 'Logo / Icon URL'),
                         ),
+                        TextField(
+                          controller: priorityController,
+                          decoration: const InputDecoration(labelText: 'Priority / Serial (0, 1, 2...)'),
+                          keyboardType: TextInputType.number,
+                        ),
                         SwitchListTile(
                           title: const Text("Hide Channel"),
                           value: isHidden,
@@ -285,6 +291,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           'status': 'live',
                           'isHidden': isHidden,
                           'isScheduled': isScheduled,
+                          'priority': int.tryParse(priorityController.text) ?? 0,
                           'startTime': isScheduled ? Timestamp.fromDate(scheduledTime) : Timestamp.now(),
                         };
 
@@ -445,7 +452,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: _isSearching
@@ -479,43 +486,14 @@ class _AdminScreenState extends State<AdminScreen> {
             indicatorColor: colorScheme.primary,
             labelColor: colorScheme.primary,
             unselectedLabelColor: colorScheme.onSurfaceVariant,
-            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
             tabs: const [
-              Tab(
-                icon: Icon(Icons.playlist_add),
-                child: SizedBox(
-                  width: 70,
-                  child: Text("Search & Add", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
-                ),
-              ),
-              Tab(
-                icon: Icon(Icons.storage),
-                child: SizedBox(
-                  width: 70,
-                  child: Text("Manage Channels", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
-                ),
-              ),
-              Tab(
-                icon: Icon(Icons.category),
-                child: SizedBox(
-                  width: 70,
-                  child: Text("Manage Categories", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
-                ),
-              ),
-              Tab(
-                icon: Icon(Icons.notifications_active),
-                child: SizedBox(
-                  width: 70,
-                  child: Text("Send Push", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
-                ),
-              ),
-              Tab(
-                icon: Icon(Icons.settings),
-                child: SizedBox(
-                  width: 70,
-                  child: Text("App Settings", textAlign: TextAlign.center, maxLines: 2, softWrap: true),
-                ),
-              ),
+              Tab(icon: Icon(Icons.playlist_add), text: "Search"),
+              Tab(icon: Icon(Icons.storage), text: "Channels"),
+              Tab(icon: Icon(Icons.category), text: "Categories"),
+              Tab(icon: Icon(Icons.send), text: "Push Now"),
+              Tab(icon: Icon(Icons.schedule_send), text: "Schedule"),
+              Tab(icon: Icon(Icons.settings), text: "Settings"),
             ],
           ),
         ),
@@ -525,7 +503,118 @@ class _AdminScreenState extends State<AdminScreen> {
             _buildDatabaseTab(colorScheme),
             _buildCategoryTab(colorScheme),
             _buildNotificationTab(colorScheme),
+            _buildScheduledNotificationTab(colorScheme),
             _buildSettingsTab(colorScheme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScheduledNotificationTab(ColorScheme colorScheme) {
+    DateTime scheduleDate = DateTime.now().add(const Duration(minutes: 10));
+    
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: () => _showScheduleDialog(),
+            icon: const Icon(Icons.add_alarm),
+            label: const Text("Schedule New Match Alert"),
+          ),
+        ),
+        const Divider(),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _firebaseService.getScheduledNotifications(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs;
+              
+              return ListView.builder(
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final time = (data['scheduledTime'] as Timestamp).toDate();
+                  final status = data['status'] ?? 'pending';
+
+                  return ListTile(
+                    leading: Icon(
+                      status == 'sent' ? Icons.check_circle : Icons.timer,
+                      color: status == 'sent' ? Colors.green : Colors.orange,
+                    ),
+                    title: Text(data['title'] ?? ''),
+                    subtitle: Text("${data['body']}\nTime: ${DateFormat('dd MMM, hh:mm a').format(time)}"),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _firebaseService.deleteScheduledNotification(docs[index].id),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showScheduleDialog() {
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
+    DateTime pickedTime = DateTime.now().add(const Duration(hours: 1));
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Schedule Notification"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title')),
+                TextField(controller: bodyController, decoration: const InputDecoration(labelText: 'Body')),
+                ListTile(
+                  title: Text("Time: ${DateFormat('dd/MM/yyyy hh:mm a').format(pickedTime)}"),
+                  trailing: const Icon(Icons.calendar_month),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: pickedTime,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 30)),
+                    );
+                    if (date != null) {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(pickedTime),
+                      );
+                      if (time != null) {
+                        setDialogState(() {
+                          pickedTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                        });
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () async {
+                await _firebaseService.scheduleNotification(
+                  titleController.text,
+                  bodyController.text,
+                  pickedTime,
+                );
+                Navigator.pop(context);
+              },
+              child: const Text("Schedule"),
+            ),
           ],
         ),
       ),

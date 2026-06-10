@@ -51,6 +51,7 @@ class StreamModel {
   final bool isHidden;
   final String subCategory; // 'live_match', 'sports_tv' for sports category
   final bool isScheduled;
+  final int priority;
 
   StreamModel({
     required this.id,
@@ -67,6 +68,7 @@ class StreamModel {
     this.isHidden = false,
     this.subCategory = '',
     this.isScheduled = false,
+    this.priority = 0,
   });
 
   factory StreamModel.fromFirestore(DocumentSnapshot doc) {
@@ -86,6 +88,7 @@ class StreamModel {
       isHidden: data['isHidden'] ?? false,
       subCategory: data['subCategory'] ?? '',
       isScheduled: data['isScheduled'] ?? false,
+      priority: data['priority'] ?? 0,
     );
   }
 }

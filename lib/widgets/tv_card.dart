@@ -73,7 +73,7 @@ class TvCard extends StatelessWidget {
                               stream.subtitle.toLowerCase().contains('sport')
                                   ? Icons.sports_soccer_rounded
                                   : Icons.tv_rounded,
-                              color: cs.onSurface.withOpacity(0.12),
+                              color: cs.onSurface.withOpacity(0.35),
                               size: 40,
                             ),
                           ),
@@ -82,7 +82,7 @@ class TvCard extends StatelessWidget {
                               stream.subtitle.toLowerCase().contains('sport')
                                   ? Icons.sports_soccer_rounded
                                   : Icons.tv_rounded,
-                              color: cs.onSurface.withOpacity(0.12),
+                              color: cs.onSurface.withOpacity(0.35),
                               size: 40,
                             ),
                           ),
