@@ -127,6 +127,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
           : CircularProgressIndicator(color: colorScheme.primary);
     }
 
+    // Wrap player with branding logo
+    final brandedPlayer = Stack(
+      children: [
+        Center(child: playerWidget),
+        Positioned(
+          top: 20,
+          right: 20,
+          child: Opacity(
+            opacity: 0.5,
+            child: Image.asset(
+              'assets/images/icon.png',
+              width: 90,
+              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ],
+    );
+
     return PiPSwitcher(
       childWhenDisabled: Scaffold(
         backgroundColor: Colors.black,
@@ -144,9 +163,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               )
             : null,
-        body: Center(child: playerWidget),
+        body: Center(child: brandedPlayer),
       ),
-      childWhenEnabled: playerWidget,
+      childWhenEnabled: brandedPlayer,
     );
   }
 }

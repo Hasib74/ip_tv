@@ -397,6 +397,29 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  Future<void> _duplicateStream(StreamModel stream) async {
+    final data = {
+      'title': "${stream.title} (Copy)",
+      'streamUrl': stream.streamUrl,
+      'subtitle': stream.subtitle,
+      'categoryId': stream.categoryId,
+      'subCategory': stream.subCategory,
+      'team1Name': stream.team1Name,
+      'team1Logo': stream.team1Logo,
+      'team2Name': stream.team2Name,
+      'team2Logo': stream.team2Logo,
+      'status': stream.status,
+      'isHidden': stream.isHidden,
+      'isScheduled': stream.isScheduled,
+      'priority': stream.priority,
+      'startTime': Timestamp.fromDate(stream.startTime),
+    };
+    await FirebaseFirestore.instance.collection('streams').add(data);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Duplicate created!')));
+    }
+  }
+
   Future<void> _deleteChannel(String id) async {
     try {
       await _firebaseService.deleteStream(id);
@@ -972,6 +995,12 @@ class _AdminScreenState extends State<AdminScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (subCategory == 'live_match')
+                    IconButton(
+                      icon: const Icon(Icons.copy, color: Colors.teal, size: 20),
+                      tooltip: 'Duplicate Match',
+                      onPressed: () => _duplicateStream(stream),
+                    ),
                   IconButton(
                     icon: Icon(stream.isHidden ? Icons.visibility_off : Icons.visibility, color: stream.isHidden ? Colors.grey : Colors.blue),
                     onPressed: () => _firebaseService.updateStream(stream.id, {'isHidden': !stream.isHidden}),
