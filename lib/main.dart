@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -24,9 +25,11 @@ void main()  async{
   await AdService.initialize();
   
   // Register your specific test device ID found in logs
-  MobileAds.instance.updateRequestConfiguration(
-    const RequestConfiguration(testDeviceIds: ["0C74070AAB4D1DF78357CC57AEDEB783"]),
-  );
+  if (!kIsWeb) {
+    MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(testDeviceIds: ["0C74070AAB4D1DF78357CC57AEDEB783"]),
+    );
+  }
 
   try {
     await Firebase.initializeApp(
@@ -37,7 +40,9 @@ void main()  async{
     await NotificationService.initialize();
     
     // Set background message listener
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    if (!kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    }
 
     // Foreground notification listener
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {

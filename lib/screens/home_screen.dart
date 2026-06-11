@@ -105,20 +105,32 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 _buildBackgroundDecor(cs, isDark),
                 SafeArea(
-                  child: Column(
-                    children: [
-                      _buildTopBar(cs, isDark),
-                      if (_isSearching) _buildSearchBar(cs, isDark),
-                      _buildAnnouncementBanner(cs),
-                      if (categories.isNotEmpty)
-                        _buildCategoryTabs(cs, isDark, categories),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: categories.isEmpty
-                            ? _buildState(icon: Icons.tv_off_rounded, label: 'No categories available', cs: cs)
-                            : _buildStreamList(cs, isDark, categories.firstWhere((c) => c.id == _selectedCategoryId, orElse: () => categories[0])),
-                      ),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxWidth = constraints.maxWidth;
+                      final isWide = maxWidth > 800;
+                      
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: isWide ? 1000 : maxWidth),
+                          child: Column(
+                            children: [
+                              _buildTopBar(cs, isDark),
+                              if (_isSearching) _buildSearchBar(cs, isDark),
+                              _buildAnnouncementBanner(cs),
+                              if (categories.isNotEmpty)
+                                _buildCategoryTabs(cs, isDark, categories),
+                              const SizedBox(height: 8),
+                              Expanded(
+                                child: categories.isEmpty
+                                    ? _buildState(icon: Icons.tv_off_rounded, label: 'No categories available', cs: cs)
+                                    : _buildStreamList(cs, isDark, categories.firstWhere((c) => c.id == _selectedCategoryId, orElse: () => categories[0]), maxWidth),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
                   ),
                 ),
               ],
@@ -349,7 +361,21 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ── Stream List with Ad Injection ──────────────────────────────────────────
-  Widget _buildStreamList(ColorScheme cs, bool isDark, CategoryModel currentCategory) {
+  Widget _buildStreamList(ColorScheme cs, bool isDark, CategoryModel currentCategory, double maxWidth) {
+    int crossAxisCount = 3;
+    if (maxWidth > 1200) {
+      crossAxisCount = 6;
+    } else if (maxWidth > 800) {
+      crossAxisCount = 4;
+    }
+
+    int movieCrossAxisCount = 2;
+    if (maxWidth > 1200) {
+      movieCrossAxisCount = 5;
+    } else if (maxWidth > 800) {
+      movieCrossAxisCount = 3;
+    }
+
     return Column(
       children: [
         if (currentCategory.icon == "sports") _buildSportsSubTabs(cs),
@@ -357,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: StreamBuilder<List<StreamModel>>(
             stream: _firebaseService.getStreams(categoryId: _selectedCategoryId, includeHidden: false),
             builder: (context, snapshot) {
-              // ... same loading and error handling ...
+              // ... handle loading/error ...
               if (snapshot.hasError) {
                 return _buildState(
                   icon: Icons.error_outline_rounded,
@@ -416,20 +442,20 @@ class _HomeScreenState extends State<HomeScreen>
                 );
               }
 
-              final key = ValueKey('$_selectedCategoryId|$_sportsSubCategory|$_searchQuery');
+              final key = ValueKey('$_selectedCategoryId|$_sportsSubCategory|$_searchQuery|$maxWidth');
 
               // --- Sports SubCategory: Sports TV (Grid View) ---
               if (currentCategory.icon == "sports" && _sportsSubCategory == "sports_tv") {
                 final List<Widget> slivers = [];
-                for (var i = 0; i < filtered.length; i += 6) {
-                  final chunk = filtered.skip(i).take(6).toList();
+                for (var i = 0; i < filtered.length; i += (crossAxisCount * 2)) {
+                  final chunk = filtered.skip(i).take(crossAxisCount * 2).toList();
 
                   slivers.add(
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
                           childAspectRatio: 0.75,
                           mainAxisSpacing: 16,
                           crossAxisSpacing: 16,
@@ -438,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen>
                           (context, index) => AnimationConfiguration.staggeredGrid(
                             position: i + index,
                             duration: const Duration(milliseconds: 375),
-                            columnCount: 3,
+                            columnCount: crossAxisCount,
                             child: ScaleAnimation(
                               scale: 0.88,
                               child: FadeInAnimation(child: TvCard(stream: chunk[index])),
@@ -450,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   );
 
-                  if ((i + chunk.length) % 6 == 0 && (i + chunk.length) < filtered.length) {
+                  if ((i + chunk.length) % (crossAxisCount * 2) == 0 && (i + chunk.length) < filtered.length) {
                     slivers.add(
                       SliverToBoxAdapter(
                         child: Column(
@@ -481,7 +507,6 @@ class _HomeScreenState extends State<HomeScreen>
 
               // --- Movie View (Premium Immersive Look) ---
               if (currentCategory.icon == "movie") {
-                // ... same movie logic ...
                 final featuredMovie = filtered.first;
                 final remainingMovies = filtered.skip(1).toList();
                 final List<Widget> slivers = [];
@@ -495,15 +520,15 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 );
 
-                for (var i = 0; i < remainingMovies.length; i += 6) {
-                  final chunk = remainingMovies.skip(i).take(6).toList();
+                for (var i = 0; i < remainingMovies.length; i += (movieCrossAxisCount * 3)) {
+                  final chunk = remainingMovies.skip(i).take(movieCrossAxisCount * 3).toList();
 
                   slivers.add(
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: movieCrossAxisCount,
                           childAspectRatio: 0.7,
                           mainAxisSpacing: 20,
                           crossAxisSpacing: 16,
@@ -512,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen>
                           (context, index) => AnimationConfiguration.staggeredGrid(
                             position: i + index,
                             duration: const Duration(milliseconds: 375),
-                            columnCount: 2,
+                            columnCount: movieCrossAxisCount,
                             child: ScaleAnimation(
                               scale: 0.9,
                               child: FadeInAnimation(
@@ -526,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   );
 
-                  if ((i + chunk.length) % 6 == 0) {
+                  if ((i + chunk.length) % (movieCrossAxisCount * 3) == 0) {
                     slivers.add(
                       SliverToBoxAdapter(
                         child: AdService.getBannerWidget(cs, key: ValueKey('ad_movie_$i')),
@@ -579,15 +604,15 @@ class _HomeScreenState extends State<HomeScreen>
 
               // Default: TV Grid View
               final List<Widget> slivers = [];
-              for (var i = 0; i < filtered.length; i += 6) {
-                final chunk = filtered.skip(i).take(6).toList();
+              for (var i = 0; i < filtered.length; i += (crossAxisCount * 2)) {
+                final chunk = filtered.skip(i).take(crossAxisCount * 2).toList();
 
                 slivers.add(
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
                         childAspectRatio: 0.75,
                         mainAxisSpacing: 16,
                         crossAxisSpacing: 16,
@@ -596,7 +621,7 @@ class _HomeScreenState extends State<HomeScreen>
                         (context, index) => AnimationConfiguration.staggeredGrid(
                           position: i + index,
                           duration: const Duration(milliseconds: 375),
-                          columnCount: 3,
+                          columnCount: crossAxisCount,
                           child: ScaleAnimation(
                             scale: 0.88,
                             child: FadeInAnimation(child: TvCard(stream: chunk[index])),
@@ -608,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 );
 
-                if ((i + chunk.length) % 6 == 0 && (i + chunk.length) < filtered.length) {
+                if ((i + chunk.length) % (crossAxisCount * 2) == 0 && (i + chunk.length) < filtered.length) {
                   slivers.add(
                     SliverToBoxAdapter(
                       child: Column(

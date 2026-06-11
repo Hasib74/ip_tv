@@ -501,15 +501,26 @@ class _AdminScreenState extends State<AdminScreen> {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _buildScraperTab(colorScheme),
-            _buildDatabaseTab(colorScheme),
-            _buildCategoryTab(colorScheme),
-            _buildNotificationTab(colorScheme),
-            _buildScheduledNotificationTab(colorScheme),
-            _buildSettingsTab(colorScheme),
-          ],
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: constraints.maxWidth > 800 ? 1000 : constraints.maxWidth,
+                ),
+                child: TabBarView(
+                  children: [
+                    _buildScraperTab(colorScheme),
+                    _buildDatabaseTab(colorScheme),
+                    _buildCategoryTab(colorScheme),
+                    _buildNotificationTab(colorScheme),
+                    _buildScheduledNotificationTab(colorScheme),
+                    _buildSettingsTab(colorScheme),
+                  ],
+                ),
+              ),
+            );
+          }
         ),
       ),
     );

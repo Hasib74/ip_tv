@@ -1,6 +1,5 @@
-import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -21,6 +20,11 @@ class NotificationService {
       provisional: false,
       sound: true,
     );
+
+    if (kIsWeb) {
+      debugPrint('Notification initialized for Web');
+      return;
+    }
 
     if (settingsMsg.authorizationStatus == AuthorizationStatus.authorized) {
       debugPrint('User granted permission');
@@ -69,6 +73,7 @@ class NotificationService {
   }
 
   static Future<void> showNotification(RemoteMessage message) async {
+    if (kIsWeb) return;
     RemoteNotification? notification = message.notification;
     Map<String, dynamic> data = message.data;
 

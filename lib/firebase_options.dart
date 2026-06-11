@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 class DefaultFirebaseOptions {
-  static FirebaseOptions get  currentPlatform {
+  static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError('DefaultFirebaseOptions have not been configured for web');
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -13,9 +13,21 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       default:
-        throw UnsupportedError('DefaultFirebaseOptions are not supported for this platform.');
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not supported for this platform.',
+        );
     }
   }
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyD84ZQeB6LePgWspPdTfwfTaB_c_pPZurA',
+    appId: '1:781909343868:web:2026e05b31b6068f0953f9',
+    messagingSenderId: '781909343868',
+    projectId: 'iptv-e14c0',
+    authDomain: 'iptv-e14c0.firebaseapp.com',
+    storageBucket: 'iptv-e14c0.firebasestorage.app',
+    measurementId: 'G-Q7G3WQF6ND',
+  );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBJdRhUmzzODG3Fui4MyZOzcARJWbk-eEk',

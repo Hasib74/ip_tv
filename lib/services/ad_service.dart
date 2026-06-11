@@ -26,6 +26,7 @@ class AdService {
       : 'ca-app-pub-9914807097694036/9114443425';
 
   static Future<void> initialize() async {
+    if (kIsWeb) return;
     await MobileAds.instance.initialize();
     loadAppOpenAd();
     loadInterstitialAd();
@@ -50,7 +51,7 @@ class AdService {
 
   // --- App Open Ad ---
   static void loadAppOpenAd() {
-    if (_appOpenAd != null || _isLoadingAppOpenAd) return;
+    if (kIsWeb || _appOpenAd != null || _isLoadingAppOpenAd) return;
 
     _isLoadingAppOpenAd = true;
     debugPrint('AppOpenAd: Loading started with ID: $appOpenUnitId');
@@ -79,6 +80,7 @@ class AdService {
   }
 
   static void showAppOpenAdIfAvailable() {
+    if (kIsWeb) return;
     final now = DateTime.now();
 
     debugPrint('AppOpenAd: Attempting to show...');
@@ -131,6 +133,7 @@ class AdService {
 
   // --- Interstitial Ad ---
   static void loadInterstitialAd() {
+    if (kIsWeb) return;
     InterstitialAd.load(
       adUnitId: interstitialUnitId,
       request: const AdRequest(),
@@ -142,6 +145,10 @@ class AdService {
   }
 
   static void showInterstitialAd(BuildContext context, VoidCallback onAdClosed) {
+    if (kIsWeb) {
+      onAdClosed();
+      return;
+    }
     _interstitialCounter++;
     
     // Show ad every 8th time
@@ -189,6 +196,7 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
   }
 
   void _loadAd() {
+    if (kIsWeb) return;
     _bannerAd = BannerAd(
       adUnitId: AdService.bannerUnitId,
       size: AdSize.largeBanner,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../firebase_options.dart';
 import '../services/ad_service.dart';
 import '../services/firebase_service.dart';
 import 'home_screen.dart';
@@ -47,7 +48,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     try {
       // 1. Firebase Background Init
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       
       // 2. Check for Force Update
       await _checkUpdate();
