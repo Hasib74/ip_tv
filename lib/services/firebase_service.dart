@@ -138,6 +138,25 @@ class FirebaseService {
     await _db.collection('scheduled_notifications').doc(id).delete();
   }
 
+  // Save M3U URL history
+  Future<void> saveM3uUrl(String url) async {
+    if (url.isEmpty) return;
+    final id = url.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    await _db.collection('m3u_history').doc(id).set({
+      'url': url,
+      'lastUsed': Timestamp.now(),
+    });
+  }
+
+  // Get M3U URL history
+  Stream<List<String>> getM3uHistory() {
+    return _db.collection('m3u_history')
+        .orderBy('lastUsed', descending: true)
+        .limit(20)
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => doc.data()['url'] as String).toList());
+  }
+
   // Send FCM Notification (Topic based)
   Future<void> sendBroadcastNotification(String title, String body) async {
     const String serverKey = 'YOUR_FCM_SERVER_KEY_HERE'; // User needs to provide this

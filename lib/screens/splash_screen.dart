@@ -52,9 +52,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // 2. Check for Force Update
       await _checkUpdate();
       
-      // 3. Ads Background Init
-      await AdService.initialize();
-      
       setState(() {
         _isInitialized = true;
       });

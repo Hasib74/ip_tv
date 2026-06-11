@@ -91,6 +91,10 @@ class _AdminScreenState extends State<AdminScreen> {
           _apiChannels = parsedChannels;
           _isLoading = false;
         });
+        
+        // Save URL to history
+        _firebaseService.saveM3uUrl(url);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Loaded ${parsedChannels.length} channels.')),
@@ -767,15 +771,47 @@ class _AdminScreenState extends State<AdminScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _urlController,
-                decoration: InputDecoration(
-                  hintText: 'Enter M3U or JSON URL...',
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.download, color: colorScheme.primary),
-                    onPressed: () => _fetchFromUrl(_urlController.text),
-                  ),
-                ),
+              child: StreamBuilder<List<String>>(
+                stream: _firebaseService.getM3uHistory(),
+                builder: (context, snapshot) {
+                  final history = snapshot.data ?? [];
+                  return Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      return history.where((String option) {
+                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                      });
+                    },
+                    onSelected: (String selection) {
+                      _urlController.text = selection;
+                      _fetchFromUrl(selection);
+                    },
+                    fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+                      return TextField(
+                        controller: textController,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          hintText: 'Enter M3U or JSON URL...',
+                          prefixIcon: const Icon(Icons.link),
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.download, color: colorScheme.primary),
+                            onPressed: () {
+                              _urlController.text = textController.text;
+                              _fetchFromUrl(textController.text);
+                            },
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onSubmitted: (value) {
+                          _urlController.text = value;
+                          _fetchFromUrl(value);
+                        },
+                      );
+                    },
+                  );
+                },
               ),
             ),
             if (_isLoading) LinearProgressIndicator(color: colorScheme.primary),
@@ -826,13 +862,92 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget _buildDatabaseTab(ColorScheme colorScheme) {
+    return StreamBuilder<List<CategoryModel>>(
+      stream: _firebaseService.getCategories(),
+      builder: (context, catSnapshot) {
+        if (!catSnapshot.hasData) return const Center(child: CircularProgressIndicator());
+        
+        final categories = catSnapshot.data!;
+        if (categories.isEmpty) {
+          return const Center(child: Text("No categories found. Please add one first."));
+        }
+
+        return DefaultTabController(
+          length: categories.length,
+          child: Column(
+            children: [
+              Container(
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                child: TabBar(
+                  isScrollable: true,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+                  tabs: categories.map((cat) => Tab(text: cat.name)).toList(),
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: categories.map((cat) {
+                    if (cat.icon == 'sports') {
+                      return DefaultTabController(
+                        length: 2,
+                        child: Column(
+                          children: [
+                            TabBar(
+                              tabs: const [
+                                Tab(text: "Live Matches"),
+                                Tab(text: "Sports TV"),
+                              ],
+                              labelColor: colorScheme.primary,
+                              unselectedLabelColor: colorScheme.onSurfaceVariant,
+                              indicatorSize: TabBarIndicatorSize.label,
+                              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                            Expanded(
+                              child: TabBarView(
+                                children: [
+                                  _buildStreamList(cat.id, "Live Matches", colorScheme, subCategory: 'live_match'),
+                                  _buildStreamList(cat.id, "Sports TV", colorScheme, subCategory: 'sports_tv'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return _buildStreamList(cat.id, cat.name, colorScheme);
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStreamList(String categoryId, String categoryName, ColorScheme colorScheme, {String? subCategory}) {
     return StreamBuilder<List<StreamModel>>(
-      stream: _firebaseService.getStreams(),
+      stream: _firebaseService.getStreams(categoryId: categoryId),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: colorScheme.primary));
         
-        final list = snapshot.data!.where((s) => s.title.toLowerCase().contains(_searchQuery)).toList();
+        var list = snapshot.data!.where((s) => s.title.toLowerCase().contains(_searchQuery)).toList();
         
+        if (subCategory != null) {
+          list = list.where((s) => s.subCategory == subCategory).toList();
+        }
+        
+        if (list.isEmpty) {
+          return Center(
+            child: Text(
+              _searchQuery.isEmpty ? "No channels in $categoryName" : "No results for '$_searchQuery'",
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+          );
+        }
+
         return ListView.builder(
           itemCount: list.length,
           itemBuilder: (context, index) {

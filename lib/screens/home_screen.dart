@@ -18,7 +18,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late FirebaseService _firebaseService;
   String? _selectedCategoryId;
   String _sportsSubCategory = 'live_match'; // 'live_match' or 'sports_tv'
@@ -30,11 +30,25 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _firebaseService = FirebaseService();
     _tabAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     )..forward();
+
+    // অ্যাপ হোম স্ক্রিনে আসার পর যদি অ্যাড লোড হয়ে থাকে তবে তা দেখাবে
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AdService.showAppOpenAdIfAvailable();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // ১৫ মিনিট পর পর অ্যাড দেখানোর জন্য চেক করা হবে যখন অ্যাপ ফোরগ্রাউন্ডে আসবে
+      AdService.showAppOpenAdIfAvailable();
+    }
   }
 
   // Helper to map string to IconData
@@ -51,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabAnimController.dispose();
     _searchController.dispose();
     super.dispose();

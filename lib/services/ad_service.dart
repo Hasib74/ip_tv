@@ -1,19 +1,20 @@
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 
 class AdService {
   static AppOpenAd? _appOpenAd;
   static bool _isShowingAd = false;
   static bool _isLoadingAppOpenAd = false;
-  static bool _appOpenAdShownOnce = false; // এক সেশনে একবার দেখানোর জন্য
+  static DateTime? _lastAppOpenShownTime;
   
   static InterstitialAd? _interstitialAd;
   static int _interstitialCounter = 0;
 
   // Ad Unit IDs
   static String get appOpenUnitId => kDebugMode 
-      ? 'ca-app-pub-3940256099942544/9257395923' // Android Test ID
+      ? 'ca-app-pub-3940256099942544/9257395921' // Corrected Android Test ID
       : 'ca-app-pub-9914807097694036/1810668479';
 
   static String get bannerUnitId => kDebugMode 
@@ -28,6 +29,23 @@ class AdService {
     await MobileAds.instance.initialize();
     loadAppOpenAd();
     loadInterstitialAd();
+
+    // 1. App Resume হলে অ্যাড দেখানোর জন্য (Standard App Open Behavior)
+    AppLifecycleListener(
+      onStateChange: (state) {
+        if (state == AppLifecycleState.resumed) {
+          debugPrint('AppLifecycle: Resumed, checking for AppOpenAd...');
+          showAppOpenAdIfAvailable();
+        }
+      },
+    );
+
+    // 2. অ্যাপের ভেতরে থাকা অবস্থায় প্রতি ১ মিনিট পর পর চেক করবে ১৫ মিনিট হয়েছে কি না
+    // যদি ১৫ মিনিট হয়ে যায়, তবে অটো অ্যাড দেখাবে (আপনার চাওয়া অনুযায়ী)
+    Timer.periodic(const Duration(minutes: 1), (timer) {
+      debugPrint('AdTimer: Checking if 15 mins passed for auto ad...');
+      showAppOpenAdIfAvailable();
+    });
   }
 
   // --- App Open Ad ---
@@ -35,43 +53,73 @@ class AdService {
     if (_appOpenAd != null || _isLoadingAppOpenAd) return;
 
     _isLoadingAppOpenAd = true;
+    debugPrint('AppOpenAd: Loading started with ID: $appOpenUnitId');
     AppOpenAd.load(
       adUnitId: appOpenUnitId,
       request: const AdRequest(),
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (ad) {
+          debugPrint('AppOpenAd: Loaded successfully');
           _appOpenAd = ad;
           _isLoadingAppOpenAd = false;
+          
+          // যদি এটি প্রথমবার লোড হয় এবং এখনও দেখানো না হয়ে থাকে, তবে সাথে সাথে দেখাবে
+          if (_lastAppOpenShownTime == null) {
+            showAppOpenAdIfAvailable();
+          }
         },
         onAdFailedToLoad: (error) {
           _isLoadingAppOpenAd = false;
-          debugPrint('AppOpenAd failed to load: $error');
+          debugPrint('AppOpenAd failed to load: ${error.message}');
+          debugPrint('AppOpenAd error code: ${error.code}');
+          // If error code is 3 (No Fill), it's a Google server issue, not code.
         },
       ),
     );
   }
 
   static void showAppOpenAdIfAvailable() {
-    // যদি একবার দেখানো হয়ে থাকে, তবে আর দেখাবে না
-    if (_appOpenAdShownOnce) return;
+    final now = DateTime.now();
 
-    if (_appOpenAd == null || _isShowingAd) {
+    debugPrint('AppOpenAd: Attempting to show...');
+
+    // যদি আগে দেখানো হয়ে থাকে, তবে ১৫ মিনিট পার হয়েছে কিনা চেক করা হবে
+    if (_lastAppOpenShownTime != null) {
+      final diff = now.difference(_lastAppOpenShownTime!).inMinutes;
+      debugPrint('AppOpenAd: Last shown $diff minutes ago');
+      if (diff < 15) {
+        debugPrint('AppOpenAd skip: 15 minutes not passed yet');
+        return;
+      }
+    }
+
+    if (_appOpenAd == null) {
+      debugPrint('AppOpenAd: Not available yet, loading now...');
       loadAppOpenAd();
       return;
     }
 
+    if (_isShowingAd) {
+      debugPrint('AppOpenAd: Already showing an ad');
+      return;
+    }
+
+    debugPrint('AppOpenAd: Showing now...');
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
         _isShowingAd = true;
-        _appOpenAdShownOnce = true; // এখানে একবার দেখানো হয়েছে বলে মার্ক করা হলো
+        _lastAppOpenShownTime = DateTime.now(); // দেখানোর সময় সেভ করা হলো
+        debugPrint('AppOpenAd: Full screen content showed');
       },
       onAdDismissedFullScreenContent: (ad) {
+        debugPrint('AppOpenAd: Ad dismissed');
         _isShowingAd = false;
         ad.dispose();
         _appOpenAd = null;
-        // আমরা আর loadAppOpenAd() কল করবো না যদি এক সেশনে একবারই দেখাতে চাই
+        loadAppOpenAd(); // পরবর্তী ব্যবহারের জন্য লোড করে রাখা হবে
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('AppOpenAd: Failed to show: $error');
         _isShowingAd = false;
         ad.dispose();
         _appOpenAd = null;

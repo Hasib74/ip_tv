@@ -2,10 +2,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
+import 'services/ad_service.dart';
 
 // Background message handler
 @pragma('vm:entry-point')
@@ -17,6 +19,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main()  async{
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  
+  // Await Ads initialization and start background listeners
+  await AdService.initialize();
+  
+  // Register your specific test device ID found in logs
+  MobileAds.instance.updateRequestConfiguration(
+    const RequestConfiguration(testDeviceIds: ["0C74070AAB4D1DF78357CC57AEDEB783"]),
+  );
 
   try {
     await Firebase.initializeApp(
