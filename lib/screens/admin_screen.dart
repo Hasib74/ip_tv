@@ -122,6 +122,8 @@ class _AdminScreenState extends State<AdminScreen> {
     bool isScheduled = existingStream?.isScheduled ?? false;
     DateTime scheduledTime = existingStream?.startTime ?? DateTime.now();
     String subCategory = existingStream?.subCategory ?? 'live_match';
+    String displayStyle = existingStream?.displayStyle ?? 'match';
+    String streamType = existingStream?.streamType ?? 'm3u8';
     
     return showDialog(
       context: context,
@@ -164,6 +166,33 @@ class _AdminScreenState extends State<AdminScreen> {
                             }).toList(),
                             onChanged: (newValue) => setDialogState(() => localCategoryId = newValue!),
                           ),
+                        
+                        const SizedBox(height: 12),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text("Link Type", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          ),
+                          child: DropdownButton<String>(
+                            value: streamType,
+                            isExpanded: true,
+                            underline: const SizedBox(),
+                            items: const [
+                              DropdownMenuItem(value: 'm3u8', child: Text("Direct Link (m3u8/mp4)")),
+                              DropdownMenuItem(value: 'webview', child: Text("WebView URL")),
+                              DropdownMenuItem(value: 'iframe', child: Text("iFrame Tag")),
+                            ],
+                            onChanged: (v) => setDialogState(() => streamType = v!),
+                          ),
+                        ),
+
                         if (selectedCategory.icon == "sports") ...[
                           const SizedBox(height: 12),
                           const Align(
@@ -177,26 +206,55 @@ class _AdminScreenState extends State<AdminScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.white.withOpacity(0.1)),
                             ),
-                            child: Row(
+                            child: Column(
                               children: [
-                                Expanded(
-                                  child: RadioListTile<String>(
-                                    title: const Text("Match", style: TextStyle(fontSize: 12)),
-                                    value: 'live_match',
-                                    contentPadding: EdgeInsets.zero,
-                                    groupValue: subCategory,
-                                    onChanged: (v) => setDialogState(() => subCategory = v!),
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: RadioListTile<String>(
+                                        title: const Text("Match", style: TextStyle(fontSize: 12)),
+                                        value: 'live_match',
+                                        contentPadding: EdgeInsets.zero,
+                                        groupValue: subCategory,
+                                        onChanged: (v) => setDialogState(() => subCategory = v!),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: RadioListTile<String>(
+                                        title: const Text("TV", style: TextStyle(fontSize: 12)),
+                                        value: 'sports_tv',
+                                        contentPadding: EdgeInsets.zero,
+                                        groupValue: subCategory,
+                                        onChanged: (v) => setDialogState(() => subCategory = v!),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Expanded(
-                                  child: RadioListTile<String>(
-                                    title: const Text("TV", style: TextStyle(fontSize: 12)),
-                                    value: 'sports_tv',
-                                    contentPadding: EdgeInsets.zero,
-                                    groupValue: subCategory,
-                                    onChanged: (v) => setDialogState(() => subCategory = v!),
+                                if (subCategory == 'live_match') ...[
+                                  const Divider(height: 1),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: RadioListTile<String>(
+                                          title: const Text("VS Mode", style: TextStyle(fontSize: 11)),
+                                          value: 'match',
+                                          contentPadding: EdgeInsets.zero,
+                                          groupValue: displayStyle,
+                                          onChanged: (v) => setDialogState(() => displayStyle = v!),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: RadioListTile<String>(
+                                          title: const Text("Banner Mode", style: TextStyle(fontSize: 11)),
+                                          value: 'simple',
+                                          contentPadding: EdgeInsets.zero,
+                                          groupValue: displayStyle,
+                                          onChanged: (v) => setDialogState(() => displayStyle = v!),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ),
@@ -249,7 +307,11 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
                         TextField(
                           controller: urlController,
-                          decoration: const InputDecoration(labelText: 'Stream URL'),
+                          decoration: InputDecoration(
+                            labelText: streamType == 'iframe' ? 'iFrame Tag' : 'Stream URL',
+                            hintText: streamType == 'iframe' ? '<iframe src="..."></iframe>' : 'https://...',
+                          ),
+                          maxLines: streamType == 'iframe' ? 3 : 1,
                         ),
                         TextField(
                           controller: team1LogoController,
@@ -265,7 +327,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           value: isHidden,
                           onChanged: (v) => setDialogState(() => isHidden = v),
                         ),
-                        if (selectedCategory.icon == "sports" && subCategory == 'live_match') ...[
+                        if (selectedCategory.icon == "sports" && subCategory == 'live_match' && displayStyle == 'match') ...[
                           const Divider(),
                           const Text("Match Details", style: TextStyle(fontWeight: FontWeight.bold)),
                           TextField(controller: team1NameController, decoration: const InputDecoration(labelText: 'Team 1 Name')),
@@ -288,9 +350,11 @@ class _AdminScreenState extends State<AdminScreen> {
                           'subtitle': selectedCategory.name,
                           'categoryId': localCategoryId,
                           'subCategory': subCategory,
-                          'team1Name': team1NameController.text,
+                          'displayStyle': displayStyle,
+                          'streamType': streamType,
+                          'team1Name': displayStyle == 'simple' ? 'Event' : team1NameController.text,
                           'team1Logo': team1LogoController.text,
-                          'team2Name': selectedCategory.icon == "sports" && subCategory == 'live_match' ? team2NameController.text : "Live TV",
+                          'team2Name': (selectedCategory.icon == "sports" && subCategory == 'live_match' && displayStyle == 'match') ? team2NameController.text : "Live TV",
                           'team2Logo': team2LogoController.text,
                           'status': 'live',
                           'isHidden': isHidden,
@@ -404,6 +468,7 @@ class _AdminScreenState extends State<AdminScreen> {
       'subtitle': stream.subtitle,
       'categoryId': stream.categoryId,
       'subCategory': stream.subCategory,
+      'displayStyle': stream.displayStyle,
       'team1Name': stream.team1Name,
       'team1Logo': stream.team1Logo,
       'team2Name': stream.team2Name,
@@ -474,76 +539,111 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<bool> _onWillPop() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit Admin'),
+        content: const Text('Are you sure you want to leave the Admin Dashboard?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('NO'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('YES'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return DefaultTabController(
-      length: 6,
-      child: Scaffold(
-        appBar: AppBar(
-          title: _isSearching
-              ? TextField(
-                  controller: _searchController,
-                  autofocus: true,
-                  decoration: const InputDecoration(hintText: 'Search...', border: InputBorder.none),
-                  style: TextStyle(color: colorScheme.onSurface),
-                  onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
-                )
-              : const Text('Admin Dashboard'),
-          actions: [
-            IconButton(
-              icon: Icon(_isSearching ? Icons.close : Icons.search),
-              onPressed: () => setState(() {
-                _isSearching = !_isSearching;
-                if (!_isSearching) {
-                  _searchQuery = "";
-                  _searchController.clear();
-                }
-              }),
-            ),
-            IconButton(
-              onPressed: () => _showAddDialog(),
-              icon: const Icon(Icons.add_box),
-              tooltip: 'Add Individual Channel',
-            ),
-          ],
-          bottom: TabBar(
-            isScrollable: true,
-            indicatorColor: colorScheme.primary,
-            labelColor: colorScheme.primary,
-            unselectedLabelColor: colorScheme.onSurfaceVariant,
-            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-            tabs: const [
-              Tab(icon: Icon(Icons.playlist_add), text: "Search"),
-              Tab(icon: Icon(Icons.storage), text: "Channels"),
-              Tab(icon: Icon(Icons.category), text: "Categories"),
-              Tab(icon: Icon(Icons.send), text: "Push Now"),
-              Tab(icon: Icon(Icons.schedule_send), text: "Schedule"),
-              Tab(icon: Icon(Icons.settings), text: "Settings"),
-            ],
-          ),
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: constraints.maxWidth > 800 ? 1000 : constraints.maxWidth,
-                ),
-                child: TabBarView(
-                  children: [
-                    _buildScraperTab(colorScheme),
-                    _buildDatabaseTab(colorScheme),
-                    _buildCategoryTab(colorScheme),
-                    _buildNotificationTab(colorScheme),
-                    _buildScheduledNotificationTab(colorScheme),
-                    _buildSettingsTab(colorScheme),
-                  ],
-                ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: DefaultTabController(
+        length: 6,
+        child: Scaffold(
+          appBar: AppBar(
+            title: _isSearching
+                ? TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    decoration: const InputDecoration(hintText: 'Search...', border: InputBorder.none),
+                    style: TextStyle(color: colorScheme.onSurface),
+                    onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+                  )
+                : const Text('Admin Dashboard'),
+            actions: [
+              IconButton(
+                icon: Icon(_isSearching ? Icons.close : Icons.search),
+                onPressed: () => setState(() {
+                  _isSearching = !_isSearching;
+                  if (!_isSearching) {
+                    _searchQuery = "";
+                    _searchController.clear();
+                  }
+                }),
               ),
-            );
-          }
+              IconButton(
+                onPressed: () => _showAddDialog(),
+                icon: const Icon(Icons.add_box),
+                tooltip: 'Add Individual Channel',
+              ),
+            ],
+            bottom: TabBar(
+              isScrollable: true,
+              indicatorColor: colorScheme.primary,
+              labelColor: colorScheme.primary,
+              unselectedLabelColor: colorScheme.onSurfaceVariant,
+              labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              tabs: const [
+                Tab(icon: Icon(Icons.playlist_add), text: "Search"),
+                Tab(icon: Icon(Icons.storage), text: "Channels"),
+                Tab(icon: Icon(Icons.category), text: "Categories"),
+                Tab(icon: Icon(Icons.send), text: "Push Now"),
+                Tab(icon: Icon(Icons.schedule_send), text: "Schedule"),
+                Tab(icon: Icon(Icons.settings), text: "Settings"),
+              ],
+            ),
+          ),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth > 800 ? 1000 : constraints.maxWidth,
+                  ),
+                  child: TabBarView(
+                    children: [
+                      _buildScraperTab(colorScheme),
+                      _buildDatabaseTab(colorScheme),
+                      _buildCategoryTab(colorScheme),
+                      _buildNotificationTab(colorScheme),
+                      _buildScheduledNotificationTab(colorScheme),
+                      _buildSettingsTab(colorScheme),
+                    ],
+                  ),
+                ),
+              );
+            }
+          ),
         ),
       ),
     );
@@ -990,7 +1090,33 @@ class _AdminScreenState extends State<AdminScreen> {
               leading: stream.team1Logo.isNotEmpty 
                   ? Image.network(stream.team1Logo, width: 40, errorBuilder: (c, e, s) => const Icon(Icons.tv))
                   : const Icon(Icons.tv),
-              title: Text(stream.title, style: TextStyle(color: stream.isHidden ? Colors.grey : colorScheme.onSurface, decoration: stream.isHidden ? TextDecoration.lineThrough : null)),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(stream.title, style: TextStyle(color: stream.isHidden ? Colors.grey : colorScheme.onSurface, decoration: stream.isHidden ? TextDecoration.lineThrough : null)),
+                  ),
+                  if (stream.viewerCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.remove_red_eye, size: 12, color: Colors.red),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${stream.viewerCount}',
+                            style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
               subtitle: Text("${stream.subtitle} | ${stream.streamUrl}", maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colorScheme.onSurfaceVariant)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,

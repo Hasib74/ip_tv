@@ -12,128 +12,138 @@ class TvCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => PlayerScreen(stream: stream)),
-      ),
-      child: Hero(
-        tag: stream.id,
-        child: Container(
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cs.outline.withOpacity(0.15)),
-            boxShadow: [
-              BoxShadow(
-                color: cs.shadow.withOpacity(0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              children: [
-                // ── Full card logo area ──
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          cs.primaryContainer.withOpacity(0.18),
-                          cs.surface,
-                        ],
-                      ),
-                    ),
+    return Focus(
+      child: Builder(
+        builder: (context) {
+          final isFocused = Focus.of(context).hasFocus;
+          
+          return GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => PlayerScreen(stream: stream)),
+            ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isFocused ? cs.primary : cs.outline.withOpacity(0.15),
+                  width: isFocused ? 2.5 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isFocused ? cs.primary.withOpacity(0.3) : cs.shadow.withOpacity(0.08),
+                    blurRadius: isFocused ? 20 : 16,
+                    offset: isFocused ? const Offset(0, 8) : const Offset(0, 6),
                   ),
-                ),
-
-                // ── Subtle grid/scanline texture ──
-                Positioned.fill(
-                  child: CustomPaint(painter: _GridPainter(cs.primary.withOpacity(0.04))),
-                ),
-
-                // ── Main content ──
-                Column(
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
                   children: [
-                    // Logo — takes most of the card
-                    Expanded(
-                      flex: 5,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 14, 12, 6),
-                        child: CachedNetworkImage(
-                          imageUrl: stream.team1Logo,
-                          fit: BoxFit.contain,
-                          placeholder: (_, __) => Center(
-                            child: Icon(
-                              stream.subtitle.toLowerCase().contains('sport')
-                                  ? Icons.sports_soccer_rounded
-                                  : Icons.tv_rounded,
-                              color: cs.onSurface.withOpacity(0.35),
-                              size: 40,
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => Center(
-                            child: Icon(
-                              stream.subtitle.toLowerCase().contains('sport')
-                                  ? Icons.sports_soccer_rounded
-                                  : Icons.tv_rounded,
-                              color: cs.onSurface.withOpacity(0.35),
-                              size: 40,
-                            ),
+                    // ── Full card logo area ──
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              isFocused ? cs.primary.withOpacity(0.1) : cs.primaryContainer.withOpacity(0.18),
+                              cs.surface,
+                            ],
                           ),
                         ),
                       ),
                     ),
 
-                    // ── Channel name bar ──
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        width: double.infinity,
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        decoration: BoxDecoration(
-                          color: cs.primary.withOpacity(0.07),
-                          border: Border(
-                            top: BorderSide(
-                              color: cs.primary.withOpacity(0.12),
-                              width: 1,
+                    // ── Subtle grid/scanline texture ──
+                    Positioned.fill(
+                      child: CustomPaint(painter: _GridPainter(cs.primary.withOpacity(0.04))),
+                    ),
+
+                    // ── Main content ──
+                    Column(
+                      children: [
+                        // Logo — takes most of the card
+                        Expanded(
+                          flex: 5,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 14, 12, 6),
+                            child: CachedNetworkImage(
+                              imageUrl: stream.team1Logo,
+                              fit: BoxFit.contain,
+                              placeholder: (_, __) => Center(
+                                child: Icon(
+                                  stream.subtitle.toLowerCase().contains('sport')
+                                      ? Icons.sports_soccer_rounded
+                                      : Icons.tv_rounded,
+                                  color: cs.onSurface.withOpacity(0.35),
+                                  size: 40,
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => Center(
+                                child: Icon(
+                                  stream.subtitle.toLowerCase().contains('sport')
+                                      ? Icons.sports_soccer_rounded
+                                      : Icons.tv_rounded,
+                                  color: cs.onSurface.withOpacity(0.35),
+                                  size: 40,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        child: Text(
-                          stream.title,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                            height: 1.2,
+
+                        // ── Channel name bar ──
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            width: double.infinity,
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            decoration: BoxDecoration(
+                              color: isFocused ? cs.primary.withOpacity(0.2) : cs.primary.withOpacity(0.07),
+                              border: Border(
+                                top: BorderSide(
+                                  color: cs.primary.withOpacity(0.12),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              stream.title,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: cs.onSurface,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                height: 1.2,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
+                    ),
+
+                    // ── LIVE badge top-right ──
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _LiveBadge(cs: cs),
                     ),
                   ],
                 ),
-
-                // ── LIVE badge top-right ──
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _LiveBadge(cs: cs),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        }
       ),
     );
   }

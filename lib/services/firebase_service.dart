@@ -189,4 +189,17 @@ class FirebaseService {
       rethrow;
     }
   }
+
+  // --- Real-time Viewer Tracking ---
+  Future<void> incrementViewerCount(String streamId) async {
+    await _db.collection('streams').doc(streamId).update({
+      'viewerCount': FieldValue.increment(1),
+    });
+  }
+
+  Future<void> decrementViewerCount(String streamId) async {
+    await _db.collection('streams').doc(streamId).update({
+      'viewerCount': FieldValue.increment(-1),
+    });
+  }
 }

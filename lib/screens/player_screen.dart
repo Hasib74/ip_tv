@@ -4,7 +4,9 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:floating/floating.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../models/stream_model.dart';
+import '../services/firebase_service.dart';
 
 class PlayerScreen extends StatefulWidget {
   final StreamModel stream;
@@ -18,6 +20,7 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   // Common
   bool _isYoutube = false;
+  bool _isHtml = false;
 
   // For Normal Streams (media_kit)
   late final Player _player;
@@ -36,6 +39,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _floating = Floating();
     _checkUrlType();
     _enableAutoPip();
+    
+    // Increment viewer count
+    FirebaseService().incrementViewerCount(widget.stream.id);
   }
 
   Future<void> _enableAutoPip() async {
@@ -47,6 +53,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _checkUrlType() {
     final url = widget.stream.streamUrl;
+    final type = widget.stream.streamType;
+
+    if (type == 'webview' || type == 'iframe') {
+      _isHtml = true;
+      return;
+    }
+
     if (url.contains('youtube.com') || url.contains('youtu.be')) {
       _isYoutube = true;
       _initializeYoutube();
@@ -92,11 +105,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
-    if (!_isYoutube) {
+    if (!_isYoutube && !_isHtml) {
       _player.dispose();
     }
     _youtubeController?.dispose();
     _floating.cancelOnLeavePiP();
+
+    // Decrement viewer count
+    FirebaseService().decrementViewerCount(widget.stream.id);
+
     super.dispose();
   }
 
@@ -112,7 +129,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     Widget playerWidget;
-    if (_isYoutube && _youtubeController != null) {
+    if (_isHtml) {
+      final htmlContent = widget.stream.streamType == 'iframe' 
+          ? widget.stream.streamUrl 
+          : '<iframe src="${widget.stream.streamUrl}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>';
+      
+      playerWidget = Container(
+        color: Colors.black,
+        child: HtmlWidget(
+          htmlContent,
+        ),
+      );
+    } else if (_isYoutube && _youtubeController != null) {
       playerWidget = YoutubePlayerBuilder(
         player: YoutubePlayer(
           controller: _youtubeController!,

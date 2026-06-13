@@ -63,121 +63,170 @@ class _StreamCardState extends State<StreamCard> {
     final isStarted = !widget.stream.isScheduled || _now.isAfter(widget.stream.startTime);
     final countdownStr = widget.stream.isScheduled ? _getCountdownText() : "LIVE";
 
-    return GestureDetector(
-      onTap: () {
-        if (isStarted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PlayerScreen(stream: widget.stream)),
-          );
-        } else {
-          _showMatchInfoSheet(context, cs, countdownStr);
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isStarted ? cs.primary.withOpacity(0.3) : cs.outline.withOpacity(0.12),
-            width: isStarted ? 1.2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: cs.shadow.withOpacity(0.08),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Column(
-            children: [
-              // ── Header ──
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isStarted 
-                    ? cs.primaryContainer.withOpacity(0.25)
-                    : cs.surfaceVariant.withOpacity(0.3),
-                  border: Border(
-                    bottom: BorderSide(color: cs.primary.withOpacity(0.08)),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    // Badge (LIVE or Countdown)
-                    if (isStarted) 
-                      _LivePill(cs: cs)
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          countdownStr,
-                          style: TextStyle(
-                            color: cs.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(width: 10),
-                    // Title
-                    Expanded(
-                      child: Text(
-                        widget.stream.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: cs.onSurface,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Time/Date
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        DateFormat('hh:mm a').format(widget.stream.startTime),
-                        style: TextStyle(
-                          color: cs.primary,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return Focus(
+      child: Builder(
+        builder: (context) {
+          final isFocused = Focus.of(context).hasFocus;
 
-              // ── Teams ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-                child: Row(
+          return GestureDetector(
+            onTap: () {
+              if (isStarted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PlayerScreen(stream: widget.stream)),
+                );
+              } else {
+                _showMatchInfoSheet(context, cs, countdownStr);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isFocused 
+                      ? cs.primary 
+                      : (isStarted ? cs.primary.withOpacity(0.3) : cs.outline.withOpacity(0.12)),
+                  width: isFocused ? 2.5 : (isStarted ? 1.2 : 1),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isFocused ? cs.primary.withOpacity(0.3) : cs.shadow.withOpacity(0.08),
+                    blurRadius: isFocused ? 20 : 14,
+                    offset: isFocused ? const Offset(0, 8) : const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Column(
                   children: [
-                    Expanded(child: _buildTeam(cs, widget.stream.team1Name, widget.stream.team1Logo)),
-                    _buildVSBadge(cs, isStarted),
-                    Expanded(child: _buildTeam(cs, widget.stream.team2Name, widget.stream.team2Logo)),
+                    // ── Header ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isFocused
+                          ? cs.primary.withOpacity(0.15)
+                          : (isStarted 
+                              ? cs.primaryContainer.withOpacity(0.25)
+                              : cs.surfaceVariant.withOpacity(0.3)),
+                        border: Border(
+                          bottom: BorderSide(color: cs.primary.withOpacity(0.08)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          // Badge (LIVE or Countdown)
+                          if (isStarted) 
+                            _LivePill(cs: cs)
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                countdownStr,
+                                style: TextStyle(
+                                  color: cs.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(width: 10),
+                          // Title
+                          Expanded(
+                            child: Text(
+                              widget.stream.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: cs.onSurface,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Time/Date removed as per user request
+                        ],
+                      ),
+                    ),
+
+                    // ── Teams ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                      child: widget.stream.displayStyle == 'simple'
+                          ? Center(
+                              child: Column(
+                                children: [
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: cs.surfaceVariant.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: cs.outline.withOpacity(0.12)),
+                                    ),
+                                    child: CachedNetworkImage(
+                                      imageUrl: widget.stream.team1Logo,
+                                      fit: BoxFit.contain,
+                                      placeholder: (_, __) => Icon(
+                                        Icons.sports_soccer_rounded,
+                                        color: cs.onSurface.withOpacity(0.12),
+                                        size: 40,
+                                      ),
+                                      errorWidget: (_, __, ___) => Icon(
+                                        Icons.sports_soccer_rounded,
+                                        color: cs.onSurface.withOpacity(0.12),
+                                        size: 40,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    widget.stream.title,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: cs.onSurface.withOpacity(0.9),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "WATCH LIVE EVENT",
+                                    style: TextStyle(
+                                      color: cs.primary.withOpacity(0.7),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Row(
+                              children: [
+                                Expanded(child: _buildTeam(cs, widget.stream.team1Name, widget.stream.team1Logo)),
+                                _buildVSBadge(cs, isStarted),
+                                Expanded(child: _buildTeam(cs, widget.stream.team2Name, widget.stream.team2Logo)),
+                              ],
+                            ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        }
       ),
     );
   }
@@ -246,28 +295,32 @@ class _StreamCardState extends State<StreamCard> {
                     const SizedBox(height: 32),
 
                     // Visual VS Area
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildSheetTeam(cs, widget.stream.team1Name, widget.stream.team1Logo),
-                        Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: cs.primary.withOpacity(0.1),
-                                shape: BoxShape.circle,
+                    widget.stream.displayStyle == 'simple'
+                        ? Center(
+                            child: _buildSheetTeam(cs, widget.stream.title, widget.stream.team1Logo),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildSheetTeam(cs, widget.stream.team1Name, widget.stream.team1Logo),
+                              Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: cs.primary.withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Text(
+                                      "VS",
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: const Text(
-                                "VS",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                        _buildSheetTeam(cs, widget.stream.team2Name, widget.stream.team2Logo),
-                      ],
-                    ),
+                              _buildSheetTeam(cs, widget.stream.team2Name, widget.stream.team2Logo),
+                            ],
+                          ),
 
                     const SizedBox(height: 40),
                     

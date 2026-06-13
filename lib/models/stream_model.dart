@@ -52,6 +52,9 @@ class StreamModel {
   final String subCategory; // 'live_match', 'sports_tv' for sports category
   final bool isScheduled;
   final int priority;
+  final String displayStyle; // 'match' or 'simple'
+  final String streamType; // 'm3u8', 'webview', 'iframe'
+  final int viewerCount;
 
   StreamModel({
     required this.id,
@@ -69,6 +72,9 @@ class StreamModel {
     this.subCategory = '',
     this.isScheduled = false,
     this.priority = 0,
+    this.displayStyle = 'match',
+    this.streamType = 'm3u8',
+    this.viewerCount = 0,
   });
 
   factory StreamModel.fromFirestore(DocumentSnapshot doc) {
@@ -89,6 +95,9 @@ class StreamModel {
       subCategory: data['subCategory'] ?? '',
       isScheduled: data['isScheduled'] ?? false,
       priority: data['priority'] ?? 0,
+      displayStyle: data['displayStyle'] ?? 'match',
+      streamType: data['streamType'] ?? 'm3u8',
+      viewerCount: data['viewerCount'] ?? 0,
     );
   }
 }

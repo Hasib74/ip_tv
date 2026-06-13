@@ -81,6 +81,31 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  Future<bool> _onWillPop() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App'),
+        content: const Text('Are you sure you want to exit SponT TV?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('NO'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('YES'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -99,41 +124,51 @@ class _HomeScreenState extends State<HomeScreen>
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
           ),
-          child: Scaffold(
-            backgroundColor: cs.surface,
-            body: Stack(
-              children: [
-                _buildBackgroundDecor(cs, isDark),
-                SafeArea(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final maxWidth = constraints.maxWidth;
-                      final isWide = maxWidth > 800;
-                      
-                      return Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: isWide ? 1000 : maxWidth),
-                          child: Column(
-                            children: [
-                              _buildTopBar(cs, isDark),
-                              if (_isSearching) _buildSearchBar(cs, isDark),
-                              _buildAnnouncementBanner(cs),
-                              if (categories.isNotEmpty)
-                                _buildCategoryTabs(cs, isDark, categories),
-                              const SizedBox(height: 8),
-                              Expanded(
-                                child: categories.isEmpty
-                                    ? _buildState(icon: Icons.tv_off_rounded, label: 'No categories available', cs: cs)
-                                    : _buildStreamList(cs, isDark, categories.firstWhere((c) => c.id == _selectedCategoryId, orElse: () => categories[0]), maxWidth),
-                              ),
-                            ],
+          child: PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, result) async {
+              if (didPop) return;
+              final shouldPop = await _onWillPop();
+              if (shouldPop && context.mounted) {
+                SystemNavigator.pop();
+              }
+            },
+            child: Scaffold(
+              backgroundColor: cs.surface,
+              body: Stack(
+                children: [
+                  _buildBackgroundDecor(cs, isDark),
+                  SafeArea(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final maxWidth = constraints.maxWidth;
+                        final isWide = maxWidth > 800;
+                        
+                        return Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: isWide ? 1000 : maxWidth),
+                            child: Column(
+                              children: [
+                                _buildTopBar(cs, isDark),
+                                if (_isSearching) _buildSearchBar(cs, isDark),
+                                _buildAnnouncementBanner(cs),
+                                if (categories.isNotEmpty)
+                                  _buildCategoryTabs(cs, isDark, categories),
+                                const SizedBox(height: 8),
+                                Expanded(
+                                  child: categories.isEmpty
+                                      ? _buildState(icon: Icons.tv_off_rounded, label: 'No categories available', cs: cs)
+                                      : _buildStreamList(cs, isDark, categories.firstWhere((c) => c.id == _selectedCategoryId, orElse: () => categories[0]), maxWidth),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    }
+                        );
+                      }
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
