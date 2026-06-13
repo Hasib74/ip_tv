@@ -74,7 +74,7 @@ class TvCard extends StatelessWidget {
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(12, 14, 12, 6),
                             child: CachedNetworkImage(
-                              imageUrl: stream.team1Logo,
+                              imageUrl: stream.logo.isNotEmpty ? stream.logo : stream.team1Logo,
                               fit: BoxFit.contain,
                               placeholder: (_, __) => Center(
                                 child: Icon(

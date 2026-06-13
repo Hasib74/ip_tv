@@ -158,7 +158,7 @@ class _StreamCardState extends State<StreamCard> {
                       ),
                     ),
 
-                    // ── Teams ──
+                    // ── Teams / Banner ──
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
                       child: widget.stream.displayStyle == 'simple'
@@ -166,26 +166,32 @@ class _StreamCardState extends State<StreamCard> {
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 80,
+                                    width: 140,
                                     height: 80,
-                                    padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                       color: cs.surfaceVariant.withOpacity(0.5),
-                                      shape: BoxShape.circle,
+                                      borderRadius: BorderRadius.circular(12),
                                       border: Border.all(color: cs.outline.withOpacity(0.12)),
                                     ),
-                                    child: CachedNetworkImage(
-                                      imageUrl: widget.stream.team1Logo,
-                                      fit: BoxFit.contain,
-                                      placeholder: (_, __) => Icon(
-                                        Icons.sports_soccer_rounded,
-                                        color: cs.onSurface.withOpacity(0.12),
-                                        size: 40,
-                                      ),
-                                      errorWidget: (_, __, ___) => Icon(
-                                        Icons.sports_soccer_rounded,
-                                        color: cs.onSurface.withOpacity(0.12),
-                                        size: 40,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: CachedNetworkImage(
+                                        imageUrl: widget.stream.logo.isNotEmpty ? widget.stream.logo : widget.stream.team1Logo,
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) => Icon(
+                                          widget.stream.subtitle.toLowerCase().contains('sport')
+                                              ? Icons.sports_soccer_rounded
+                                              : Icons.tv_rounded,
+                                          color: cs.onSurface.withOpacity(0.12),
+                                          size: 40,
+                                        ),
+                                        errorWidget: (_, __, ___) => Icon(
+                                          widget.stream.subtitle.toLowerCase().contains('sport')
+                                              ? Icons.sports_soccer_rounded
+                                              : Icons.tv_rounded,
+                                          color: cs.onSurface.withOpacity(0.12),
+                                          size: 40,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -297,7 +303,7 @@ class _StreamCardState extends State<StreamCard> {
                     // Visual VS Area
                     widget.stream.displayStyle == 'simple'
                         ? Center(
-                            child: _buildSheetTeam(cs, widget.stream.title, widget.stream.team1Logo),
+                            child: _buildSheetTeam(cs, widget.stream.title, widget.stream.logo.isNotEmpty ? widget.stream.logo : widget.stream.team1Logo),
                           )
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

@@ -41,6 +41,7 @@ class StreamModel {
   final String title;
   final String subtitle;
   final String categoryId;
+  final String logo;
   final String team1Name;
   final String team1Logo;
   final String team2Name;
@@ -61,6 +62,7 @@ class StreamModel {
     required this.title,
     required this.subtitle,
     required this.categoryId,
+    this.logo = '',
     required this.team1Name,
     required this.team1Logo,
     required this.team2Name,
@@ -84,6 +86,7 @@ class StreamModel {
       title: data['title'] ?? '',
       subtitle: data['subtitle'] ?? '',
       categoryId: data['categoryId'] ?? '',
+      logo: data['logo'] ?? '',
       team1Name: data['team1Name'] ?? '',
       team1Logo: data['team1Logo'] ?? '',
       team2Name: data['team2Name'] ?? '',

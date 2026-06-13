@@ -113,6 +113,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _showAddDialog({Map<String, dynamic>? channel, StreamModel? existingStream}) async {
     final titleController = TextEditingController(text: existingStream?.title ?? channel?['name'] ?? '');
     final urlController = TextEditingController(text: existingStream?.streamUrl ?? channel?['url'] ?? '');
+    final mainLogoController = TextEditingController(text: existingStream?.logo ?? channel?['logo'] ?? '');
     final team1NameController = TextEditingController(text: existingStream?.team1Name ?? channel?['name'] ?? '');
     final team1LogoController = TextEditingController(text: existingStream?.team1Logo ?? channel?['logo'] ?? '');
     final team2NameController = TextEditingController(text: existingStream?.team2Name ?? '');
@@ -313,10 +314,11 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                           maxLines: streamType == 'iframe' ? 3 : 1,
                         ),
-                        TextField(
-                          controller: team1LogoController,
-                          decoration: const InputDecoration(labelText: 'Logo / Icon URL'),
-                        ),
+                        if (displayStyle != 'match')
+                          TextField(
+                            controller: mainLogoController,
+                            decoration: const InputDecoration(labelText: 'Logo / Icon URL'),
+                          ),
                         TextField(
                           controller: priorityController,
                           decoration: const InputDecoration(labelText: 'Priority / Serial (0, 1, 2...)'),
@@ -347,14 +349,15 @@ class _AdminScreenState extends State<AdminScreen> {
                         final data = {
                           'title': titleController.text,
                           'streamUrl': urlController.text,
+                          'logo': mainLogoController.text,
                           'subtitle': selectedCategory.name,
                           'categoryId': localCategoryId,
                           'subCategory': subCategory,
                           'displayStyle': displayStyle,
                           'streamType': streamType,
-                          'team1Name': displayStyle == 'simple' ? 'Event' : team1NameController.text,
+                          'team1Name': team1NameController.text.isEmpty ? 'Event' : team1NameController.text,
                           'team1Logo': team1LogoController.text,
-                          'team2Name': (selectedCategory.icon == "sports" && subCategory == 'live_match' && displayStyle == 'match') ? team2NameController.text : "Live TV",
+                          'team2Name': team2NameController.text.isEmpty ? "Live TV" : team2NameController.text,
                           'team2Logo': team2LogoController.text,
                           'status': 'live',
                           'isHidden': isHidden,
@@ -465,6 +468,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final data = {
       'title': "${stream.title} (Copy)",
       'streamUrl': stream.streamUrl,
+      'logo': stream.logo,
       'subtitle': stream.subtitle,
       'categoryId': stream.categoryId,
       'subCategory': stream.subCategory,
@@ -581,6 +585,15 @@ class _AdminScreenState extends State<AdminScreen> {
         length: 6,
         child: Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () async {
+                final shouldPop = await _onWillPop();
+                if (shouldPop && context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
             title: _isSearching
                 ? TextField(
                     controller: _searchController,
@@ -1086,9 +1099,10 @@ class _AdminScreenState extends State<AdminScreen> {
           itemCount: list.length,
           itemBuilder: (context, index) {
             final stream = list[index];
+            final displayLogo = stream.logo.isNotEmpty ? stream.logo : stream.team1Logo;
             return ListTile(
-              leading: stream.team1Logo.isNotEmpty 
-                  ? Image.network(stream.team1Logo, width: 40, errorBuilder: (c, e, s) => const Icon(Icons.tv))
+              leading: displayLogo.isNotEmpty 
+                  ? Image.network(displayLogo, width: 40, errorBuilder: (c, e, s) => const Icon(Icons.tv))
                   : const Icon(Icons.tv),
               title: Row(
                 children: [

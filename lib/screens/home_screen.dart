@@ -799,7 +799,7 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               Positioned.fill(
                 child: CachedNetworkImage(
-                  imageUrl: movie.team1Logo,
+                  imageUrl: movie.logo.isNotEmpty ? movie.logo : movie.team1Logo,
                   fit: BoxFit.cover,
                   placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
                   errorWidget: (_, __, ___) => const Icon(Icons.movie_rounded, size: 50),
@@ -954,7 +954,7 @@ class MovieCard extends StatelessWidget {
                     children: [
                       Positioned.fill(
                         child: CachedNetworkImage(
-                          imageUrl: stream.team1Logo,
+                          imageUrl: stream.logo.isNotEmpty ? stream.logo : stream.team1Logo,
                           fit: BoxFit.cover,
                           placeholder: (_, __) => Container(
                             color: cs.surfaceContainerHighest,

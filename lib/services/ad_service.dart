@@ -41,10 +41,10 @@ class AdService {
       },
     );
 
-    // 2. অ্যাপের ভেতরে থাকা অবস্থায় প্রতি ১ মিনিট পর পর চেক করবে ১৫ মিনিট হয়েছে কি না
-    // যদি ১৫ মিনিট হয়ে যায়, তবে অটো অ্যাড দেখাবে (আপনার চাওয়া অনুযায়ী)
+    // 2. অ্যাপের ভেতরে থাকা অবস্থায় প্রতি ১ মিনিট পর পর চেক করবে ২০ মিনিট হয়েছে কি না
+    // যদি ২০ মিনিট হয়ে যায়, তবে অটো অ্যাড দেখাবে (আপনার চাওয়া অনুযায়ী)
     Timer.periodic(const Duration(minutes: 1), (timer) {
-      debugPrint('AdTimer: Checking if 15 mins passed for auto ad...');
+      debugPrint('AdTimer: Checking if 20 mins passed for auto ad...');
       showAppOpenAdIfAvailable();
     });
   }
@@ -85,12 +85,12 @@ class AdService {
 
     debugPrint('AppOpenAd: Attempting to show...');
 
-    // যদি আগে দেখানো হয়ে থাকে, তবে ১৫ মিনিট পার হয়েছে কিনা চেক করা হবে
+    // যদি আগে দেখানো হয়ে থাকে, তবে ২০ মিনিট পার হয়েছে কিনা চেক করা হবে
     if (_lastAppOpenShownTime != null) {
       final diff = now.difference(_lastAppOpenShownTime!).inMinutes;
       debugPrint('AppOpenAd: Last shown $diff minutes ago');
-      if (diff < 15) {
-        debugPrint('AppOpenAd skip: 15 minutes not passed yet');
+      if (diff < 20) {
+        debugPrint('AppOpenAd skip: 20 minutes not passed yet');
         return;
       }
     }
