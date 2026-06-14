@@ -8,6 +8,10 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static Future<void> initialize() async {
+    if (kIsWeb || !defaultTargetPlatform.toString().contains('android') && !defaultTargetPlatform.toString().contains('iOS')) {
+      debugPrint('Notification skip for this platform');
+      return;
+    }
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
     // 1. Request Permission using Firebase Messaging

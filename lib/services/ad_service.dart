@@ -26,7 +26,7 @@ class AdService {
       : 'ca-app-pub-9914807097694036/9114443425';
 
   static Future<void> initialize() async {
-    if (kIsWeb) return;
+    if (kIsWeb || !defaultTargetPlatform.toString().contains('android') && !defaultTargetPlatform.toString().contains('iOS')) return;
     await MobileAds.instance.initialize();
     loadAppOpenAd();
     loadInterstitialAd();
@@ -51,7 +51,7 @@ class AdService {
 
   // --- App Open Ad ---
   static void loadAppOpenAd() {
-    if (kIsWeb || _appOpenAd != null || _isLoadingAppOpenAd) return;
+    if (kIsWeb || !defaultTargetPlatform.toString().contains('android') && !defaultTargetPlatform.toString().contains('iOS') || _appOpenAd != null || _isLoadingAppOpenAd) return;
 
     _isLoadingAppOpenAd = true;
     debugPrint('AppOpenAd: Loading started with ID: $appOpenUnitId');
@@ -80,7 +80,7 @@ class AdService {
   }
 
   static void showAppOpenAdIfAvailable() {
-    if (kIsWeb) return;
+    if (kIsWeb || !defaultTargetPlatform.toString().contains('android') && !defaultTargetPlatform.toString().contains('iOS')) return;
     final now = DateTime.now();
 
     debugPrint('AppOpenAd: Attempting to show...');
