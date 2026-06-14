@@ -12,6 +12,8 @@ class DefaultFirebaseOptions {
         return android;
       case TargetPlatform.iOS:
         return ios;
+      case TargetPlatform.windows:
+        return web; // Windows typically uses Web config if not configured separately
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
