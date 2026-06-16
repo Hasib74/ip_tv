@@ -118,6 +118,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final team1LogoController = TextEditingController(text: existingStream?.team1Logo ?? channel?['logo'] ?? '');
     final team2NameController = TextEditingController(text: existingStream?.team2Name ?? '');
     final team2LogoController = TextEditingController(text: existingStream?.team2Logo ?? '');
+    final selectorController = TextEditingController(text: existingStream?.webSelector ?? '');
     final priorityController = TextEditingController(text: (existingStream?.priority ?? 0).toString());
     bool isHidden = existingStream?.isHidden ?? false;
     bool isScheduled = existingStream?.isScheduled ?? false;
@@ -314,11 +315,18 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                           maxLines: streamType == 'iframe' ? 3 : 1,
                         ),
-                        if (displayStyle != 'match')
+                        if (streamType == 'webview')
                           TextField(
-                            controller: mainLogoController,
-                            decoration: const InputDecoration(labelText: 'Logo / Icon URL'),
+                            controller: selectorController,
+                            decoration: const InputDecoration(
+                              labelText: 'CSS Selector to Keep (Optional)',
+                              hintText: 'e.g., #video-player or .player-container',
+                            ),
                           ),
+                        TextField(
+                          controller: mainLogoController,
+                          decoration: const InputDecoration(labelText: 'Logo / Icon URL'),
+                        ),
                         TextField(
                           controller: priorityController,
                           decoration: const InputDecoration(labelText: 'Priority / Serial (0, 1, 2...)'),
@@ -355,6 +363,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           'subCategory': subCategory,
                           'displayStyle': displayStyle,
                           'streamType': streamType,
+                          'webSelector': selectorController.text.trim(),
                           'team1Name': team1NameController.text.isEmpty ? 'Event' : team1NameController.text,
                           'team1Logo': team1LogoController.text,
                           'team2Name': team2NameController.text.isEmpty ? "Live TV" : team2NameController.text,
@@ -473,6 +482,8 @@ class _AdminScreenState extends State<AdminScreen> {
       'categoryId': stream.categoryId,
       'subCategory': stream.subCategory,
       'displayStyle': stream.displayStyle,
+      'streamType': stream.streamType,
+      'webSelector': stream.webSelector,
       'team1Name': stream.team1Name,
       'team1Logo': stream.team1Logo,
       'team2Name': stream.team2Name,
@@ -1086,6 +1097,9 @@ class _AdminScreenState extends State<AdminScreen> {
           list = list.where((s) => s.subCategory == subCategory).toList();
         }
         
+        // Sorting is handled by FirebaseService stream, but double check here
+        list.sort((a, b) => a.priority.compareTo(b.priority));
+        
         if (list.isEmpty) {
           return Center(
             child: Text(
@@ -1095,12 +1109,26 @@ class _AdminScreenState extends State<AdminScreen> {
           );
         }
 
-        return ListView.builder(
+        return ReorderableListView.builder(
+          onReorder: (oldIndex, newIndex) async {
+            if (newIndex > oldIndex) newIndex -= 1;
+            final item = list.removeAt(oldIndex);
+            list.insert(newIndex, item);
+            
+            // Batch update priorities in Firestore
+            final batch = FirebaseFirestore.instance.batch();
+            for (int i = 0; i < list.length; i++) {
+              final docRef = FirebaseFirestore.instance.collection('streams').doc(list[i].id);
+              batch.update(docRef, {'priority': i});
+            }
+            await batch.commit();
+          },
           itemCount: list.length,
           itemBuilder: (context, index) {
             final stream = list[index];
             final displayLogo = stream.logo.isNotEmpty ? stream.logo : stream.team1Logo;
             return ListTile(
+              key: ValueKey(stream.id),
               leading: displayLogo.isNotEmpty 
                   ? Image.network(displayLogo, width: 40, errorBuilder: (c, e, s) => const Icon(Icons.tv))
                   : const Icon(Icons.tv),
@@ -1153,6 +1181,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                   IconButton(icon: const Icon(Icons.edit, color: Colors.orange), onPressed: () => _showAddDialog(existingStream: stream)),
                   IconButton(icon: Icon(Icons.delete, color: colorScheme.error), onPressed: () => _deleteChannel(stream.id)),
+                  const Icon(Icons.drag_handle, color: Colors.grey),
                 ],
               ),
             );

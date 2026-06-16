@@ -56,6 +56,7 @@ class StreamModel {
   final String displayStyle; // 'match' or 'simple'
   final String streamType; // 'm3u8', 'webview', 'iframe'
   final int viewerCount;
+  final String webSelector; // CSS Selector to keep visible
 
   StreamModel({
     required this.id,
@@ -77,6 +78,7 @@ class StreamModel {
     this.displayStyle = 'match',
     this.streamType = 'm3u8',
     this.viewerCount = 0,
+    this.webSelector = '',
   });
 
   factory StreamModel.fromFirestore(DocumentSnapshot doc) {
@@ -101,6 +103,7 @@ class StreamModel {
       displayStyle: data['displayStyle'] ?? 'match',
       streamType: data['streamType'] ?? 'm3u8',
       viewerCount: data['viewerCount'] ?? 0,
+      webSelector: data['webSelector'] ?? '',
     );
   }
 }
