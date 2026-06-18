@@ -429,30 +429,35 @@ class _StreamCardState extends State<StreamCard> {
     return Column(
       children: [
         Container(
-          width: 60,
+          width: 70,
           height: 60,
-          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: cs.surfaceVariant.withOpacity(0.5),
             shape: BoxShape.circle,
             border: Border.all(color: cs.outline.withOpacity(0.12)),
           ),
-          child: CachedNetworkImage(
-            imageUrl: logo,
-            fit: BoxFit.fill,
-            placeholder: (_, __) => Icon(
-              widget.stream.subtitle.toLowerCase().contains('sport')
-                  ? Icons.sports_soccer_rounded
-                  : Icons.tv_rounded,
-              color: cs.onSurface.withOpacity(0.12),
-              size: 32,
-            ),
-            errorWidget: (_, __, ___) => Icon(
-              widget.stream.subtitle.toLowerCase().contains('sport')
-                  ? Icons.sports_soccer_rounded
-                  : Icons.tv_rounded,
-              color: cs.onSurface.withOpacity(0.12),
-              size: 32,
+          child: ClipOval(
+            child: CachedNetworkImage(
+              imageUrl: logo,
+              fit: BoxFit.fill,
+              placeholder: (_, __) => Center(
+                child: Icon(
+                  widget.stream.subtitle.toLowerCase().contains('sport')
+                      ? Icons.sports_soccer_rounded
+                      : Icons.tv_rounded,
+                  color: cs.onSurface.withOpacity(0.12),
+                  size: 30,
+                ),
+              ),
+              errorWidget: (_, __, ___) => Center(
+                child: Icon(
+                  widget.stream.subtitle.toLowerCase().contains('sport')
+                      ? Icons.sports_soccer_rounded
+                      : Icons.tv_rounded,
+                  color: cs.onSurface.withOpacity(0.12),
+                  size: 30,
+                ),
+              ),
             ),
           ),
         ),
