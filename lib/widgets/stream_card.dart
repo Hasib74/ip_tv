@@ -166,7 +166,7 @@ class _StreamCardState extends State<StreamCard> {
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 140,
+                                    width: 100,
                                     height: 80,
                                     decoration: BoxDecoration(
                                       color: cs.surfaceVariant.withOpacity(0.5),
@@ -177,7 +177,7 @@ class _StreamCardState extends State<StreamCard> {
                                       borderRadius: BorderRadius.circular(12),
                                       child: CachedNetworkImage(
                                         imageUrl: widget.stream.logo.isNotEmpty ? widget.stream.logo : widget.stream.team1Logo,
-                                        fit: BoxFit.cover,
+                                        fit: BoxFit.fill,
                                         placeholder: (_, __) => Icon(
                                           widget.stream.subtitle.toLowerCase().contains('sport')
                                               ? Icons.sports_soccer_rounded
@@ -406,7 +406,7 @@ class _StreamCardState extends State<StreamCard> {
           ),
           child: CachedNetworkImage(
             imageUrl: logo,
-            fit: BoxFit.contain,
+            fit: BoxFit.fill,
             errorWidget: (_, __, ___) => const Icon(Icons.sports_soccer, color: Colors.white10, size: 40),
           ),
         ),
@@ -439,7 +439,7 @@ class _StreamCardState extends State<StreamCard> {
           ),
           child: CachedNetworkImage(
             imageUrl: logo,
-            fit: BoxFit.contain,
+            fit: BoxFit.fill,
             placeholder: (_, __) => Icon(
               widget.stream.subtitle.toLowerCase().contains('sport')
                   ? Icons.sports_soccer_rounded

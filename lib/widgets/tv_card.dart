@@ -71,28 +71,25 @@ class TvCard extends StatelessWidget {
                         // Logo — takes most of the card
                         Expanded(
                           flex: 5,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 14, 12, 6),
-                            child: CachedNetworkImage(
-                              imageUrl: stream.logo.isNotEmpty ? stream.logo : stream.team1Logo,
-                              fit: BoxFit.contain,
-                              placeholder: (_, __) => Center(
-                                child: Icon(
-                                  stream.subtitle.toLowerCase().contains('sport')
-                                      ? Icons.sports_soccer_rounded
-                                      : Icons.tv_rounded,
-                                  color: cs.onSurface.withOpacity(0.35),
-                                  size: 40,
-                                ),
+                          child: CachedNetworkImage(
+                            imageUrl: stream.logo.isNotEmpty ? stream.logo : stream.team1Logo,
+                            fit: BoxFit.fill,
+                            placeholder: (_, __) => Center(
+                              child: Icon(
+                                stream.subtitle.toLowerCase().contains('sport')
+                                    ? Icons.sports_soccer_rounded
+                                    : Icons.tv_rounded,
+                                color: cs.onSurface.withOpacity(0.35),
+                                size: 40,
                               ),
-                              errorWidget: (_, __, ___) => Center(
-                                child: Icon(
-                                  stream.subtitle.toLowerCase().contains('sport')
-                                      ? Icons.sports_soccer_rounded
-                                      : Icons.tv_rounded,
-                                  color: cs.onSurface.withOpacity(0.35),
-                                  size: 40,
-                                ),
+                            ),
+                            errorWidget: (_, __, ___) => Center(
+                              child: Icon(
+                                stream.subtitle.toLowerCase().contains('sport')
+                                    ? Icons.sports_soccer_rounded
+                                    : Icons.tv_rounded,
+                                color: cs.onSurface.withOpacity(0.35),
+                                size: 40,
                               ),
                             ),
                           ),
