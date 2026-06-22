@@ -327,13 +327,16 @@ class _HomeScreenState extends State<HomeScreen>
                   title: 'Feedback',
                   subtitle: 'Report issues or suggest features',
                   onTap: () async {
-                    final Uri emailLaunchUri = Uri(
-                      scheme: 'mailto',
-                      path: 'hasibakon74@gmail.com',
-                      query: 'subject=SponT TV Feedback',
-                    );
-                    if (await canLaunchUrl(emailLaunchUri)) {
-                      await launchUrl(emailLaunchUri);
+                    final String subject = Uri.encodeComponent("SponT TV Feedback");
+                    final Uri emailLaunchUri = Uri.parse("mailto:hasibakon74@gmail.com?subject=$subject");
+                    try {
+                      await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open email app. Please email hasibakon74@gmail.com')),
+                        );
+                      }
                     }
                   },
                 ),
@@ -342,9 +345,15 @@ class _HomeScreenState extends State<HomeScreen>
                   title: 'Check Updates',
                   subtitle: 'Join our Telegram channel',
                   onTap: () async {
-                    const url = 'https://t.me/spont_tv'; // Change to your link
-                    if (await canLaunchUrl(Uri.parse(url))) {
+                    const url = 'https://t.me/spont_tv';
+                    try {
                       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open link.')),
+                        );
+                      }
                     }
                   },
                 ),

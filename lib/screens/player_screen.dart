@@ -40,8 +40,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // For PiP
   late final Floating _floating;
-
-  @override
+@override
   void initState() {
     super.initState();
     _floating = Floating();
@@ -496,13 +495,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   IconButton(
                     icon: const Icon(Icons.feedback_outlined, color: Colors.orangeAccent),
                     onPressed: () async {
-                      final Uri emailLaunchUri = Uri(
-                        scheme: 'mailto',
-                        path: 'hasibakon74@gmail.com',
-                        query: 'subject=Report: ${widget.stream.title}&body=Hi, I am facing issues with ${widget.stream.title}. Please check.',
-                      );
-                      if (await canLaunchUrl(emailLaunchUri)) {
-                        await launchUrl(emailLaunchUri);
+                      final String subject = Uri.encodeComponent("Report: ${widget.stream.title}");
+                      final String body = Uri.encodeComponent("Hi, I am facing issues with ${widget.stream.title}. Please check.");
+                      final Uri emailLaunchUri = Uri.parse("mailto:hasibakon74@gmail.com?subject=$subject&body=$body");
+                      
+                      try {
+                        if (await canLaunchUrl(emailLaunchUri)) {
+                          await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
+                        } else {
+                          // Fallback if canLaunchUrl fails
+                          await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Could not open email app. Please email hasibakon74@gmail.com')),
+                          );
+                        }
                       }
                     },
                     tooltip: 'Report Issue',
@@ -525,8 +534,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             : null,
         body: SafeArea(child: Center(child: brandedPlayer)),
       ),
-      childWhenEnabled: brandedPlayer,
-    );
+      childWhenEnabled: brandedPlayer    );
   }
 }
 
