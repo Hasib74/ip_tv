@@ -19,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late FirebaseService _firebaseService;
+  late AppFirebaseService _firebaseService;
   String? _selectedCategoryId;
   String _sportsSubCategory = 'live_match'; // 'live_match' or 'sports_tv'
   String _searchQuery = '';
@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _firebaseService = FirebaseService();
+    _firebaseService = AppFirebaseService();
     _tabAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),

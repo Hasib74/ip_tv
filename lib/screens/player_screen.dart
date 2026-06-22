@@ -28,6 +28,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final Player _player;
   late final VideoController _controller;
   bool _isInitialized = false;
+  bool _isBuffering = false;
 
   // For Youtube
   YoutubePlayerController? _youtubeController;
@@ -46,7 +47,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _enableAutoPip();
     
     // Increment viewer count
-    FirebaseService().incrementViewerCount(widget.stream.id);
+    AppFirebaseService().incrementViewerCount(widget.stream.id);
   }
 
   Future<void> _enableAutoPip() async {
@@ -162,9 +163,59 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _initializeMediaKit() async {
     _player = Player();
     _controller = VideoController(_player);
-    
+
+    // Optimize for HLS (m3u8) loading speed and smoothness
+    try {
+      final platform = _player.platform as dynamic;
+      
+      // Mimic a desktop browser to avoid server throttling
+      platform.setProperty('user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+      
+      // Hardware Acceleration
+      platform.setProperty('hwdec', 'auto');
+      
+      // Low Latency & Smoothness for Live Streams
+      platform.setProperty('profile', 'low-latency');
+      platform.setProperty('vd-lavc-fast', 'yes');
+      platform.setProperty('avsync', 'ext');
+      platform.setProperty('framedrop', 'vo');
+      
+      // Aggressive Buffer & Cache Settings (Prevent constant buffering)
+      platform.setProperty('demuxer-max-bytes', '104857600'); // 100MB
+      platform.setProperty('demuxer-max-back-bytes', '52428800'); // 50MB
+      platform.setProperty('demuxer-readahead-secs', '60'); // Buffer 60 seconds ahead
+      platform.setProperty('cache', 'yes');
+      platform.setProperty('cache-secs', '60');
+      platform.setProperty('hls-bitrate', 'min');
+      
+      // Network & Protocol Stability
+      platform.setProperty('network-timeout', '20');
+      platform.setProperty('stream-buffer-size', '8192000'); // 8MB
+      platform.setProperty('http-header-fields', 'Referer: https://www.google.com');
+
+    } catch (e) {
+      debugPrint("Error setting mpv properties: $e");
+    }
+
+    // Listen for buffering state to show loading indicator
+    _player.stream.buffering.listen((buffering) {
+      if (mounted) {
+        setState(() {
+          _isBuffering = buffering;
+        });
+      }
+    });
+
     _player.stream.error.listen((event) {
       debugPrint("MediaKit Error: $event");
+    });
+
+    // Listen for tracks - we don't force one initially to allow Auto (ABR) to work
+    // HLS (m3u8) works best with Auto to avoid buffering.
+    _player.stream.tracks.listen((tracks) {
+      if (tracks.video.isNotEmpty) {
+        debugPrint("Available video tracks: ${tracks.video.length}");
+      }
     });
 
     await _player.open(Media(widget.stream.streamUrl));
@@ -174,6 +225,93 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _isInitialized = true;
       });
     }
+  }
+
+  void _showQualityMenu() {
+    if (!_isInitialized) return;
+
+    final videoTracks = _player.state.tracks.video;
+    final currentTrack = _player.state.track.video;
+
+    // Filter out 'no' and 'auto' for the list, and sort by resolution if possible
+    final tracks = videoTracks.where((t) => t.id != 'no' && t.id != 'auto').toList();
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "ভিডিও কোয়ালিটি সেট করুন", // "Set Video Quality" in Bengali
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              "কম কোয়ালিটি দিলে বাফারিং কম হবে", // "Lower quality reduces buffering"
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            const Divider(color: Colors.white12),
+            // Auto option
+            ListTile(
+              leading: Icon(Icons.speed, 
+                  color: currentTrack.id == 'auto' ? Colors.blue : Colors.white70),
+              title: const Text("Auto (Adaptive)", style: TextStyle(color: Colors.white)),
+              subtitle: const Text("ইন্টারনেট অনুযায়ী নিজে নিজেই পরিবর্তন হবে", style: TextStyle(color: Colors.grey, fontSize: 11)),
+              trailing: currentTrack.id == 'auto' ? const Icon(Icons.check, color: Colors.blue) : null,
+              onTap: () {
+                _player.setVideoTrack(VideoTrack.auto());
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(color: Colors.white10),
+            // Available tracks list
+            Expanded(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: tracks.length,
+                itemBuilder: (context, index) {
+                  final track = tracks[index];
+                  final isSelected = currentTrack.id == track.id;
+                  String title = track.title ?? "Quality ${track.id}";
+                  
+                  // Clean up title and add indicators
+                  String resolution = "";
+                  if (title.contains("1080")) resolution = "1080p (Full HD)";
+                  else if (title.contains("720")) resolution = "720p (HD)";
+                  else if (title.contains("480")) resolution = "480p (SD)";
+                  else if (title.contains("360")) resolution = "360p (Low)";
+                  else if (title.contains("240")) resolution = "240p (Very Low)";
+                  else resolution = title;
+
+                  return ListTile(
+                    leading: Icon(
+                      isSelected ? Icons.check_circle : Icons.circle_outlined,
+                      color: isSelected ? Colors.green : Colors.white70,
+                    ),
+                    title: Text(resolution, style: TextStyle(
+                      color: isSelected ? Colors.green : Colors.white,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    )),
+                    subtitle: index == tracks.length - 1 ? const Text("কম ডাটা খরচ হবে", style: TextStyle(fontSize: 10, color: Colors.grey)) : null,
+                    onTap: () {
+                      _player.setVideoTrack(track);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -188,7 +326,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _floating.cancelOnLeavePiP();
 
     // Decrement viewer count
-    FirebaseService().decrementViewerCount(widget.stream.id);
+    AppFirebaseService().decrementViewerCount(widget.stream.id);
     
     super.dispose();
   }
@@ -231,14 +369,41 @@ class _PlayerScreenState extends State<PlayerScreen> {
       );
     } else {
       playerWidget = _isInitialized
-          ? Video(controller: _controller)
+          ? Stack(
+              alignment: Alignment.center,
+              children: [
+                Video(
+                  controller: _controller,
+                  controls: MaterialVideoControls,
+                ),
+                if (_isBuffering)
+                  const CircularProgressIndicator(color: Colors.white),
+              ],
+            )
           : CircularProgressIndicator(color: colorScheme.primary);
     }
 
-    // Wrap player with branding logo
+    // Wrap player with branding logo and quality button
     final brandedPlayer = Stack(
       children: [
         Center(child: playerWidget),
+        // Quality Settings Button (Floating on player)
+        if (!_isYoutube && !_isWebView && _isInitialized)
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Material(
+              color: Colors.black38,
+              borderRadius: BorderRadius.circular(30),
+              child: IconButton(
+                icon: const Icon(Icons.settings_suggest_outlined, color: Colors.white, size: 20),
+                onPressed: _showQualityMenu,
+                tooltip: 'Change Quality',
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ),
         if (!_isWebView)
           Positioned(
             top: 20,
@@ -265,6 +430,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     style: TextStyle(fontSize: 16, color: colorScheme.onSurface)),
                 iconTheme: IconThemeData(color: colorScheme.onSurface),
                 actions: [
+                  if (!_isYoutube && !_isWebView && _isInitialized)
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      onPressed: _showQualityMenu,
+                      tooltip: 'Video Quality',
+                    ),
                   IconButton(
                     icon: const Icon(Icons.picture_in_picture_alt, color: Colors.red,),
                     onPressed: _enablePip,

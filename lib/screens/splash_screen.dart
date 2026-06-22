@@ -94,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _checkUpdate() async {
-    final firebaseService = FirebaseService();
+    final firebaseService = AppFirebaseService();
     final config = await firebaseService.getAppVersionConfig();
     
     if (config != null) {

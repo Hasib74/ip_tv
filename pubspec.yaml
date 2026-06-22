@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+7
+version: 1.0.0+8
 
 environment:
   sdk: ^3.0.0
@@ -33,33 +33,33 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-  firebase_core: ^3.11.0
-  cloud_firestore: ^5.6.1
-  video_player: ^2.9.2
-  chewie: ^1.9.0
-  cached_network_image: ^3.4.1
-  google_fonts: ^6.2.1
-  intl: ^0.20.2
-  package_info_plus: ^8.2.1
-  url_launcher: ^6.3.1
-  http: ^1.2.1
-  youtube_player_flutter: ^9.1.1
-  firebase_messaging: ^15.1.3
-  firebase_analytics: ^11.3.0
-  flutter_local_notifications: ^17.2.3
-  permission_handler: ^11.3.1
-  dynamic_color: ^1.7.0
-  flutter_staggered_animations: ^1.0.0
-  google_mobile_ads: ^5.1.0
-  floating: ^6.0.0
-  media_kit: ^1.1.11
-  media_kit_video: ^1.2.5
-  media_kit_libs_android_video: ^1.3.7
-  media_kit_libs_windows_video: ^1.0.0
+  cupertino_icons:
+  firebase_core:
+  cloud_firestore:
+  video_player:
+  chewie:
+  cached_network_image:
+  google_fonts:
+  intl:
+  package_info_plus:
+  url_launcher:
+  http:
+  youtube_player_flutter:
+  firebase_messaging:
+  firebase_analytics:
+  flutter_local_notifications:
+  permission_handler:
+  dynamic_color:
+  flutter_staggered_animations:
+  google_mobile_ads:
+  floating:
+  media_kit:
+  media_kit_video:
+  media_kit_libs_android_video:
+  media_kit_libs_windows_video:
   m3u:
     path: lib/plugin
-  flutter_widget_from_html: ^0.17.2
+  flutter_widget_from_html:
 
 dev_dependencies:
   flutter_test:
@@ -70,9 +70,9 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.14.3
-  change_app_package_name: ^1.4.0
+  flutter_lints:
+  flutter_launcher_icons:
+  change_app_package_name:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

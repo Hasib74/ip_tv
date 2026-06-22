@@ -55,7 +55,7 @@ class NotificationService {
     );
 
     await _localNotificationsPlugin.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: (details) {
         // Handle when user taps on the notification (e.g., navigate to a specific match)
         debugPrint("Notification tapped: ${details.payload}");
@@ -86,10 +86,10 @@ class NotificationService {
 
     if (title != null || body != null) {
       await _localNotificationsPlugin.show(
-        notification.hashCode,
-        title,
-        body,
-        const NotificationDetails(
+        id: notification?.hashCode ?? 0,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'High Importance Notifications',

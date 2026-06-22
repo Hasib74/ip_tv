@@ -12,7 +12,7 @@ class AdminLoginScreen extends StatefulWidget {
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final FirebaseService _firebaseService = FirebaseService();
+  final AppFirebaseService _firebaseService = AppFirebaseService();
   bool _isLoading = false;
 
   void _handleLogin() async {

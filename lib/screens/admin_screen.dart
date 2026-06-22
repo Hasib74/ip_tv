@@ -15,7 +15,7 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  final FirebaseService _firebaseService = FirebaseService();
+  final AppFirebaseService _firebaseService = AppFirebaseService();
   List<dynamic> _apiChannels = [];
   bool _isLoading = false;
   final TextEditingController _urlController = TextEditingController();

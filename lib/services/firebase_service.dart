@@ -5,7 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../models/stream_model.dart';
 
-class FirebaseService {
+class AppFirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // Save/Update Device Token for Push Notifications
