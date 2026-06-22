@@ -166,7 +166,7 @@ class _StreamCardState extends State<StreamCard> {
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 140,
+                                    width: 100,
                                     height: 80,
                                     decoration: BoxDecoration(
                                       color: cs.surfaceVariant.withOpacity(0.5),
@@ -177,7 +177,7 @@ class _StreamCardState extends State<StreamCard> {
                                       borderRadius: BorderRadius.circular(12),
                                       child: CachedNetworkImage(
                                         imageUrl: widget.stream.logo.isNotEmpty ? widget.stream.logo : widget.stream.team1Logo,
-                                        fit: BoxFit.cover,
+                                        fit: BoxFit.fill,
                                         placeholder: (_, __) => Icon(
                                           widget.stream.subtitle.toLowerCase().contains('sport')
                                               ? Icons.sports_soccer_rounded
@@ -406,7 +406,7 @@ class _StreamCardState extends State<StreamCard> {
           ),
           child: CachedNetworkImage(
             imageUrl: logo,
-            fit: BoxFit.contain,
+            fit: BoxFit.fill,
             errorWidget: (_, __, ___) => const Icon(Icons.sports_soccer, color: Colors.white10, size: 40),
           ),
         ),
@@ -429,30 +429,35 @@ class _StreamCardState extends State<StreamCard> {
     return Column(
       children: [
         Container(
-          width: 60,
+          width: 70,
           height: 60,
-          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: cs.surfaceVariant.withOpacity(0.5),
             shape: BoxShape.circle,
             border: Border.all(color: cs.outline.withOpacity(0.12)),
           ),
-          child: CachedNetworkImage(
-            imageUrl: logo,
-            fit: BoxFit.contain,
-            placeholder: (_, __) => Icon(
-              widget.stream.subtitle.toLowerCase().contains('sport')
-                  ? Icons.sports_soccer_rounded
-                  : Icons.tv_rounded,
-              color: cs.onSurface.withOpacity(0.12),
-              size: 32,
-            ),
-            errorWidget: (_, __, ___) => Icon(
-              widget.stream.subtitle.toLowerCase().contains('sport')
-                  ? Icons.sports_soccer_rounded
-                  : Icons.tv_rounded,
-              color: cs.onSurface.withOpacity(0.12),
-              size: 32,
+          child: ClipOval(
+            child: CachedNetworkImage(
+              imageUrl: logo,
+              fit: BoxFit.fill,
+              placeholder: (_, __) => Center(
+                child: Icon(
+                  widget.stream.subtitle.toLowerCase().contains('sport')
+                      ? Icons.sports_soccer_rounded
+                      : Icons.tv_rounded,
+                  color: cs.onSurface.withOpacity(0.12),
+                  size: 30,
+                ),
+              ),
+              errorWidget: (_, __, ___) => Center(
+                child: Icon(
+                  widget.stream.subtitle.toLowerCase().contains('sport')
+                      ? Icons.sports_soccer_rounded
+                      : Icons.tv_rounded,
+                  color: cs.onSurface.withOpacity(0.12),
+                  size: 30,
+                ),
+              ),
             ),
           ),
         ),
