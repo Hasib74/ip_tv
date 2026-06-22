@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/stream_model.dart';
 import '../services/firebase_service.dart';
+import '../services/ad_service.dart';
 
 class PlayerScreen extends StatefulWidget {
   final StreamModel stream;
@@ -43,6 +44,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 @override
   void initState() {
     super.initState();
+    AdService.setPlaybackActive(true);
     _floating = Floating();
     _checkUrlType();
     _enableAutoPip();
@@ -317,9 +319,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    AdService.setPlaybackActive(false);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     if (!_isYoutube && !_isWebView) {
       _player.dispose();
     }
@@ -336,6 +340,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final canUsePip = await _floating.isPipAvailable;
     if (canUsePip) {
       await _floating.enable(const ImmediatePiP(aspectRatio: Rational.landscape()));
+    }
+  }
+
+  void _toggleFullscreen() {
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    if (isPortrait) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
   }
 
@@ -408,49 +428,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       padding: EdgeInsets.zero,
                     ),
                   ),
-              /*    const SizedBox(width: 8),
-                  Material(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(30),
-                    child: IconButton(
-                      icon: const Icon(Icons.refresh, color: Colors.greenAccent, size: 20),
-                      onPressed: () {
-                        setState(() => _isInitialized = false);
-                        if (!_isYoutube && !_isWebView) _player.dispose();
-                        _checkUrlType();
-                      },
-                      tooltip: 'Refresh',
-                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
                   const SizedBox(width: 8),
                   Material(
                     color: Colors.black45,
                     borderRadius: BorderRadius.circular(30),
                     child: IconButton(
                       icon: Icon(
-                        isPortrait ? Icons.screen_lock_landscape : Icons.screen_lock_portrait,
+                        isPortrait ? Icons.fullscreen : Icons.fullscreen_exit,
                         color: Colors.blueAccent,
                         size: 20,
                       ),
-                      onPressed: () {
-                        if (isPortrait) {
-                          SystemChrome.setPreferredOrientations([
-                            DeviceOrientation.landscapeLeft,
-                            DeviceOrientation.landscapeRight,
-                          ]);
-                        } else {
-                          SystemChrome.setPreferredOrientations([
-                            DeviceOrientation.portraitUp,
-                          ]);
-                        }
-                      },
-                      tooltip: 'Rotate',
+                      onPressed: _toggleFullscreen,
+                      tooltip: 'Fullscreen',
                       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                       padding: EdgeInsets.zero,
                     ),
-                  ),*/
+                  ),
                 ],
               ),
             ),

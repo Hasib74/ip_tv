@@ -12,6 +12,13 @@ class AdService {
   static InterstitialAd? _interstitialAd;
   static int _interstitialCounter = 0;
 
+  static bool isPlaybackActive = false;
+
+  static void setPlaybackActive(bool active) {
+    isPlaybackActive = active;
+    debugPrint('AdService: Playback active set to $active');
+  }
+
   // Ad Unit IDs
   static String get appOpenUnitId => kDebugMode 
       ? 'ca-app-pub-3940256099942544/9257395921' // Corrected Android Test ID
@@ -84,6 +91,11 @@ class AdService {
     final now = DateTime.now();
 
     debugPrint('AppOpenAd: Attempting to show...');
+
+    if (isPlaybackActive) {
+      debugPrint('AppOpenAd skip: Playback is active');
+      return;
+    }
 
     // যদি আগে দেখানো হয়ে থাকে, তবে ২০ মিনিট পার হয়েছে কিনা চেক করা হবে
     if (_lastAppOpenShownTime != null) {
