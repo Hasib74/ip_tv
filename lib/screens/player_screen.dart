@@ -7,6 +7,8 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:floating/floating.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/stream_model.dart';
 import '../services/firebase_service.dart';
 
@@ -248,11 +250,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              "ভিডিও কোয়ালিটি সেট করুন", // "Set Video Quality" in Bengali
+              "Set Video Quality",
               style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Text(
-              "কম কোয়ালিটি দিলে বাফারিং কম হবে", // "Lower quality reduces buffering"
+              "Lower quality reduces buffering",
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
             const SizedBox(height: 10),
@@ -262,7 +264,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               leading: Icon(Icons.speed, 
                   color: currentTrack.id == 'auto' ? Colors.blue : Colors.white70),
               title: const Text("Auto (Adaptive)", style: TextStyle(color: Colors.white)),
-              subtitle: const Text("ইন্টারনেট অনুযায়ী নিজে নিজেই পরিবর্তন হবে", style: TextStyle(color: Colors.grey, fontSize: 11)),
+              subtitle: const Text("Adjusts based on internet speed", style: TextStyle(color: Colors.grey, fontSize: 11)),
               trailing: currentTrack.id == 'auto' ? const Icon(Icons.check, color: Colors.blue) : null,
               onTap: () {
                 _player.setVideoTrack(VideoTrack.auto());
@@ -298,7 +300,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       color: isSelected ? Colors.green : Colors.white,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     )),
-                    subtitle: index == tracks.length - 1 ? const Text("কম ডাটা খরচ হবে", style: TextStyle(fontSize: 10, color: Colors.grey)) : null,
+                    subtitle: index == tracks.length - 1 ? const Text("Uses less data", style: TextStyle(fontSize: 10, color: Colors.grey)) : null,
                     onTap: () {
                       _player.setVideoTrack(track);
                       Navigator.pop(context);
@@ -341,6 +343,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
     Widget playerWidget;
     if (_isWebView) {
@@ -392,15 +395,64 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Positioned(
             top: 10,
             left: 10,
-            child: Material(
-              color: Colors.black38,
-              borderRadius: BorderRadius.circular(30),
-              child: IconButton(
-                icon: const Icon(Icons.settings_suggest_outlined, color: Colors.white, size: 20),
-                onPressed: _showQualityMenu,
-                tooltip: 'Change Quality',
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                padding: EdgeInsets.zero,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(30),
+                    child: IconButton(
+                      icon: const Icon(Icons.settings_suggest_outlined, color: Colors.white, size: 20),
+                      onPressed: _showQualityMenu,
+                      tooltip: 'Change Quality',
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+              /*    const SizedBox(width: 8),
+                  Material(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(30),
+                    child: IconButton(
+                      icon: const Icon(Icons.refresh, color: Colors.greenAccent, size: 20),
+                      onPressed: () {
+                        setState(() => _isInitialized = false);
+                        if (!_isYoutube && !_isWebView) _player.dispose();
+                        _checkUrlType();
+                      },
+                      tooltip: 'Refresh',
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Material(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(30),
+                    child: IconButton(
+                      icon: Icon(
+                        isPortrait ? Icons.screen_lock_landscape : Icons.screen_lock_portrait,
+                        color: Colors.blueAccent,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        if (isPortrait) {
+                          SystemChrome.setPreferredOrientations([
+                            DeviceOrientation.landscapeLeft,
+                            DeviceOrientation.landscapeRight,
+                          ]);
+                        } else {
+                          SystemChrome.setPreferredOrientations([
+                            DeviceOrientation.portraitUp,
+                          ]);
+                        }
+                      },
+                      tooltip: 'Rotate',
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),*/
+                ],
               ),
             ),
           ),
@@ -408,12 +460,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Positioned(
             top: 20,
             right: 20,
-            child: Opacity(
-              opacity: 0.5,
-              child: Image.asset(
-                'assets/images/icon.png',
-                width: 90,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+            child: SafeArea(
+              child: Opacity(
+                opacity: 0.5,
+                child: Image.asset(
+                  'assets/images/icon.png',
+                  width: 90,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
@@ -423,19 +477,45 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return PiPSwitcher(
       childWhenDisabled: Scaffold(
         backgroundColor: Colors.black,
-        appBar: MediaQuery.of(context).orientation == Orientation.portrait
+        appBar: isPortrait
             ? AppBar(
                 backgroundColor: Colors.transparent,
                 title: Text(widget.stream.title,
                     style: TextStyle(fontSize: 16, color: colorScheme.onSurface)),
                 iconTheme: IconThemeData(color: colorScheme.onSurface),
                 actions: [
-                  if (!_isYoutube && !_isWebView && _isInitialized)
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined),
-                      onPressed: _showQualityMenu,
-                      tooltip: 'Video Quality',
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.share_rounded, color: Colors.blueAccent),
+                    onPressed: () {
+                      Share.share(
+                        'Watching ${widget.stream.title} on SponT TV!\nDownload SponT TV for HD Live Sports & TV Channels: https://play.google.com/store/apps/details?id=com.hasib.sponttv',
+                      );
+                    },
+                    tooltip: 'Share',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.feedback_outlined, color: Colors.orangeAccent),
+                    onPressed: () async {
+                      final Uri emailLaunchUri = Uri(
+                        scheme: 'mailto',
+                        path: 'hasibakon74@gmail.com',
+                        query: 'subject=Report: ${widget.stream.title}&body=Hi, I am facing issues with ${widget.stream.title}. Please check.',
+                      );
+                      if (await canLaunchUrl(emailLaunchUri)) {
+                        await launchUrl(emailLaunchUri);
+                      }
+                    },
+                    tooltip: 'Report Issue',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: Colors.greenAccent),
+                    onPressed: () {
+                      setState(() => _isInitialized = false);
+                      if (!_isYoutube && !_isWebView) _player.dispose();
+                      _checkUrlType();
+                    },
+                    tooltip: 'Refresh',
+                  ),
                   IconButton(
                     icon: const Icon(Icons.picture_in_picture_alt, color: Colors.red,),
                     onPressed: _enablePip,
@@ -443,7 +523,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               )
             : null,
-        body: Center(child: brandedPlayer),
+        body: SafeArea(child: Center(child: brandedPlayer)),
       ),
       childWhenEnabled: brandedPlayer,
     );

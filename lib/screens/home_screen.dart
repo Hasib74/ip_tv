@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/firebase_service.dart';
 import '../services/ad_service.dart';
 import '../models/stream_model.dart';
@@ -19,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late AppFirebaseService _firebaseService;
   String? _selectedCategoryId;
   String _sportsSubCategory = 'live_match'; // 'live_match' or 'sports_tv'
@@ -134,6 +137,8 @@ class _HomeScreenState extends State<HomeScreen>
               }
             },
             child: Scaffold(
+              key: _scaffoldKey,
+              drawer: _buildDrawer(cs, isDark),
               backgroundColor: cs.surface,
               body: Stack(
                 children: [
@@ -210,9 +215,15 @@ class _HomeScreenState extends State<HomeScreen>
   // ── Top Bar ─────────────────────────────────────────────────────────────
   Widget _buildTopBar(ColorScheme cs, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
+          _TopBarButton(
+            icon: Icons.menu_rounded,
+            cs: cs,
+            onTap: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
+          const SizedBox(width: 12),
           GestureDetector(
             onLongPress: () => Navigator.push(
               context,
@@ -241,6 +252,138 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
+    );
+  }
+
+  // ── Drawer Widget ───────────────────────────────────────────────────────
+  Widget _buildDrawer(ColorScheme cs, bool isDark) {
+    return Drawer(
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [cs.primary, cs.secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset('assets/images/icon.jpeg', height: 60, width: 60),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'SponT TV',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  'HD Live Sports & TV',
+                  style: TextStyle(
+                    color: Colors.black.withOpacity(0.6),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              children: [
+                _drawerItem(
+                  icon: Icons.share_rounded,
+                  title: 'Share App',
+                  subtitle: 'Share with friends & family',
+                  onTap: () {
+                    Share.share(
+                      'Download SponT TV to watch HD Live Sports & TV Channels for free!\nDownload now: https://play.google.com/store/apps/details?id=com.hasib.sponttv',
+                    );
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.feedback_rounded,
+                  title: 'Feedback',
+                  subtitle: 'Report issues or suggest features',
+                  onTap: () async {
+                    final Uri emailLaunchUri = Uri(
+                      scheme: 'mailto',
+                      path: 'hasibakon74@gmail.com',
+                      query: 'subject=SponT TV Feedback',
+                    );
+                    if (await canLaunchUrl(emailLaunchUri)) {
+                      await launchUrl(emailLaunchUri);
+                    }
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.update_rounded,
+                  title: 'Check Updates',
+                  subtitle: 'Join our Telegram channel',
+                  onTap: () async {
+                    const url = 'https://t.me/spont_tv'; // Change to your link
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+                const Divider(indent: 20, endIndent: 20),
+                _drawerItem(
+                  icon: Icons.info_outline_rounded,
+                  title: 'About',
+                  subtitle: 'Version 1.0.0+8',
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              'Made with ❤️ in Bangladesh',
+              style: TextStyle(color: cs.onSurface.withOpacity(0.3), fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _drawerItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
+      onTap: () {
+        Navigator.pop(context);
+        onTap();
+      },
     );
   }
 
