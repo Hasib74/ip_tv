@@ -9,6 +9,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/stream_model.dart';
 import '../services/firebase_service.dart';
 import '../services/ad_service.dart';
@@ -22,16 +23,18 @@ class PlayerScreen extends StatefulWidget {
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen> {
+class _PlayerScreenState extends State<PlayerScreen> with WidgetsBindingObserver {
   // Common
   bool _isYoutube = false;
   bool _isWebView = false;
+  bool _isViewing = false;
 
   // For Normal Streams (media_kit)
   late final Player _player;
   late final VideoController _controller;
   bool _isInitialized = false;
   bool _isBuffering = false;
+  VideoTrack _currentTrack = VideoTrack.auto();
 
   // For Youtube
   YoutubePlayerController? _youtubeController;
@@ -41,16 +44,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // For PiP
   late final Floating _floating;
-@override
+
+  bool _showChannelList = false;
+
+  @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AdService.setPlaybackActive(true);
     _floating = Floating();
     _checkUrlType();
     _enableAutoPip();
     
-    // Increment viewer count
-    AppFirebaseService().incrementViewerCount(widget.stream.id);
+    _startViewing();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startViewing();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
+      _stopViewing();
+    }
+  }
+
+  void _startViewing() {
+    if (!_isViewing) {
+      _isViewing = true;
+      AppFirebaseService().incrementViewerCount(widget.stream.id);
+    }
+  }
+
+  void _stopViewing() {
+    if (_isViewing) {
+      _isViewing = false;
+      AppFirebaseService().decrementViewerCount(widget.stream.id);
+    }
   }
 
   Future<void> _enableAutoPip() async {
@@ -221,6 +250,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     });
 
+    _player.stream.track.listen((track) {
+      if (mounted) {
+        setState(() {
+          _currentTrack = track.video;
+        });
+      }
+    });
+
     await _player.open(Media(widget.stream.streamUrl));
     
     if (mounted) {
@@ -251,22 +288,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              "Set Video Quality",
+              "Select Video Quality",
               style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Text(
-              "Lower quality reduces buffering",
+              "Lower quality saves data and reduces buffering",
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
             const SizedBox(height: 10),
             const Divider(color: Colors.white12),
             // Auto option
             ListTile(
-              leading: Icon(Icons.speed, 
+              leading: Icon(Icons.auto_awesome_rounded, 
                   color: currentTrack.id == 'auto' ? Colors.blue : Colors.white70),
-              title: const Text("Auto (Adaptive)", style: TextStyle(color: Colors.white)),
-              subtitle: const Text("Adjusts based on internet speed", style: TextStyle(color: Colors.grey, fontSize: 11)),
-              trailing: currentTrack.id == 'auto' ? const Icon(Icons.check, color: Colors.blue) : null,
+              title: const Text("Auto (Recommended)", style: TextStyle(color: Colors.white)),
+              subtitle: const Text("Adjusts based on your internet speed", style: TextStyle(color: Colors.grey, fontSize: 11)),
+              trailing: currentTrack.id == 'auto' ? const Icon(Icons.check_circle, color: Colors.blue) : null,
               onTap: () {
                 _player.setVideoTrack(VideoTrack.auto());
                 Navigator.pop(context);
@@ -285,23 +322,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   
                   // Clean up title and add indicators
                   String resolution = "";
-                  if (title.contains("1080")) resolution = "1080p (Full HD)";
-                  else if (title.contains("720")) resolution = "720p (HD)";
-                  else if (title.contains("480")) resolution = "480p (SD)";
-                  else if (title.contains("360")) resolution = "360p (Low)";
-                  else if (title.contains("240")) resolution = "240p (Very Low)";
-                  else resolution = title;
+                  IconData icon = Icons.sd_rounded;
+                  Color iconColor = Colors.white70;
+
+                  if (title.contains("1080")) {
+                    resolution = "1080p (Full HD)";
+                    icon = Icons.hd_rounded;
+                    iconColor = Colors.orange;
+                  } else if (title.contains("720")) {
+                    resolution = "720p (HD)";
+                    icon = Icons.hd_rounded;
+                    iconColor = Colors.blue;
+                  } else if (title.contains("480")) {
+                    resolution = "480p (SD)";
+                  } else if (title.contains("360")) {
+                    resolution = "360p (Low)";
+                  } else if (title.contains("240")) {
+                    resolution = "240p (Very Low)";
+                  } else {
+                    resolution = title;
+                  }
 
                   return ListTile(
                     leading: Icon(
-                      isSelected ? Icons.check_circle : Icons.circle_outlined,
-                      color: isSelected ? Colors.green : Colors.white70,
+                      icon,
+                      color: isSelected ? Colors.green : iconColor,
                     ),
                     title: Text(resolution, style: TextStyle(
                       color: isSelected ? Colors.green : Colors.white,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     )),
-                    subtitle: index == tracks.length - 1 ? const Text("Uses less data", style: TextStyle(fontSize: 10, color: Colors.grey)) : null,
+                    trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.green) : null,
                     onTap: () {
                       _player.setVideoTrack(track);
                       Navigator.pop(context);
@@ -319,6 +370,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopViewing();
     AdService.setPlaybackActive(false);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -329,9 +382,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _youtubeController?.dispose();
     _floating.cancelOnLeavePiP();
-
-    // Decrement viewer count
-    AppFirebaseService().decrementViewerCount(widget.stream.id);
     
     super.dispose();
   }
@@ -395,8 +445,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
               alignment: Alignment.center,
               children: [
                 Video(
+                  width: MediaQuery.sizeOf(context).width,
+                  height: MediaQuery.sizeOf(context).height,
                   controller: _controller,
                   controls: MaterialVideoControls,
+                  fit: isPortrait ? BoxFit.contain : BoxFit.fill, // Contain in portrait, Fill in landscape
                 ),
                 if (_isBuffering)
                   const CircularProgressIndicator(color: Colors.white),
@@ -410,7 +463,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       children: [
         Center(child: playerWidget),
         // Quality Settings Button (Floating on player)
-        if (!_isYoutube && !_isWebView && _isInitialized)
+        if (!_isYoutube && !_isWebView && _isInitialized && isPortrait)
           Positioned(
             top: 10,
             left: 10,
@@ -420,10 +473,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   Material(
                     color: Colors.black45,
                     borderRadius: BorderRadius.circular(30),
+                    child: InkWell(
+                      onTap: _showQualityMenu,
+                      borderRadius: BorderRadius.circular(30),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.settings_suggest_outlined, color: Colors.white, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              _currentTrack.id == 'auto' ? "Auto" : (_currentTrack.title?.contains('p') == true ? _currentTrack.title!.split(' ').first : "Quality"),
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+        /*          Material(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(30),
                     child: IconButton(
-                      icon: const Icon(Icons.settings_suggest_outlined, color: Colors.white, size: 20),
-                      onPressed: _showQualityMenu,
-                      tooltip: 'Change Quality',
+                      icon: const Icon(Icons.refresh, color: Colors.greenAccent, size: 20),
+                      onPressed: () {
+                        setState(() => _isInitialized = false);
+                        if (!_isYoutube && !_isWebView) _player.dispose();
+                        _checkUrlType();
+                      },
+                      tooltip: 'Refresh',
                       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                       padding: EdgeInsets.zero,
                     ),
@@ -443,12 +523,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                       padding: EdgeInsets.zero,
                     ),
-                  ),
+                  ),*/
                 ],
               ),
             ),
           ),
-        if (!_isWebView)
+        if (!_isWebView && isPortrait)
           Positioned(
             top: 20,
             right: 20,
@@ -525,9 +605,135 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               )
             : null,
-        body: SafeArea(child: Center(child: brandedPlayer)),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(child: Center(child: brandedPlayer)),
+            /*  if (isPortrait) ...[
+                GestureDetector(
+                  onTap: () => setState(() => _showChannelList = !_showChannelList),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _showChannelList ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                          color: Colors.white70,
+                        ),
+                        Text(
+                          _showChannelList ? "Hide Channels" : "More Channels",
+                          style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: _showChannelList ? 140 : 0,
+                  curve: Curves.easeInOut,
+                  child: _showChannelList ? _buildRelatedChannels(colorScheme) : const SizedBox.shrink(),
+                ),
+              ],*/
+            ],
+          ),
+        ),
       ),
       childWhenEnabled: brandedPlayer    );
+  }
+
+  Widget _buildRelatedChannels(ColorScheme cs) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.02),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: StreamBuilder<List<StreamModel>>(
+        stream: AppFirebaseService().getStreams(categoryId: widget.stream.categoryId, includeHidden: false),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
+          final channels = snapshot.data!.where((s) => s.id != widget.stream.id).toList();
+          if (channels.isEmpty) return const Center(child: Text("No more channels", style: TextStyle(color: Colors.grey, fontSize: 12)));
+
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            itemCount: channels.length,
+            itemBuilder: (context, index) {
+              final channel = channels[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => PlayerScreen(stream: channel)),
+                  );
+                },
+                child: Container(
+                  width: 90,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: channel.id == widget.stream.id 
+                                  ? Colors.greenAccent 
+                                  : Colors.white.withOpacity(0.1),
+                              width: channel.id == widget.stream.id ? 2 : 1,
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: CachedNetworkImage(
+                                  imageUrl: channel.logo.isNotEmpty ? channel.logo : channel.team1Logo,
+                                  fit: BoxFit.contain,
+                                  placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  errorWidget: (_, __, ___) => const Icon(Icons.tv_rounded, color: Colors.white24),
+                                ),
+                              ),
+                              if (channel.id == widget.stream.id)
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 10),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        channel.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 }
 
